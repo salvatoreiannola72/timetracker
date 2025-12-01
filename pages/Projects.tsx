@@ -25,7 +25,7 @@ export const Projects: React.FC = () => {
   });
 
   if (user?.role !== Role.ADMIN) {
-      return <div className="p-8 text-center text-slate-500">Access Denied</div>;
+      return <div className="p-8 text-center text-slate-500">Accesso Negato</div>;
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,14 +44,14 @@ export const Projects: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
-            <p className="text-slate-500 text-sm">Active client engagements</p>
+            <h1 className="text-2xl font-bold text-slate-900">Progetti</h1>
+            <p className="text-slate-500 text-sm">Progetti clienti attivi</p>
         </div>
         <Button 
             onClick={() => setIsModalOpen(true)}
             icon={<Plus size={18} />}
         >
-            New Project
+            Nuovo Progetto
         </Button>
       </div>
 
@@ -71,7 +71,7 @@ export const Projects: React.FC = () => {
                     <p className="text-slate-500 text-sm mb-4">{project.client}</p>
                     <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${project.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {project.status}
+                            {project.status === 'ACTIVE' ? 'ATTIVO' : 'ARCHIVIATO'}
                         </span>
                     </div>
                 </div>
@@ -84,7 +84,7 @@ export const Projects: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden zoom-in-95">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-semibold text-slate-900">Create New Project</h3>
+                <h3 className="font-semibold text-slate-900">Crea Nuovo Progetto</h3>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                     <X size={20}/>
                 </button>
@@ -92,31 +92,31 @@ export const Projects: React.FC = () => {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Project Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Progetto</label>
                     <input 
                         type="text" 
                         required
                         className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-                        placeholder="e.g. Website Redesign"
+                        placeholder="es. Redesign Sito Web"
                         value={formData.name}
                         onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Client Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Cliente</label>
                     <input 
                         type="text" 
                         required
                         className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-                        placeholder="e.g. Acme Corp"
+                        placeholder="es. Acme Srl"
                         value={formData.client}
                         onChange={e => setFormData({...formData, client: e.target.value})}
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Color Tag</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Colore Etichetta</label>
                     <div className="flex flex-wrap gap-3">
                         {PROJECT_COLORS.map(color => (
                             <button
@@ -133,8 +133,8 @@ export const Projects: React.FC = () => {
                 </div>
 
                 <div className="pt-4 flex gap-3">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                    <Button type="submit" className="flex-1">Create Project</Button>
+                    <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>Annulla</Button>
+                    <Button type="submit" className="flex-1">Crea Progetto</Button>
                 </div>
             </form>
           </div>

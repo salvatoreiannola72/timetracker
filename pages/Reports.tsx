@@ -2,16 +2,40 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
-import { Download, Printer, Building2, Users, FileText, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Printer, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import { User, Project } from '../types';
 
 type ViewMode = 'CLIENTS' | 'TEAM' | 'RAW';
+type PeriodType = 'monthly' | 'yearly';
 
 export const Reports: React.FC = () => {
   const { entries, projects, users } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>('CLIENTS');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [periodType, setPeriodType] = useState<PeriodType>('monthly');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    return {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1
+    };
+  });
+
+  // Filter entries based on selected period
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      const entryDate = new Date(entry.date);
+      const entryYear = entryDate.getFullYear();
+      const entryMonth = entryDate.getMonth() + 1;
+
+      if (periodType === 'yearly') {
+        return entryYear === selectedDate.year;
+      } else {
+        return entryYear === selectedDate.year && entryMonth === selectedDate.month;
+      }
+    });
+  }, [entries, periodType, selectedDate]);
 
   // --- Aggregation Logic ---
 
@@ -24,7 +48,7 @@ export const Reports: React.FC = () => {
       users: Record<string, number> 
     }> = {};
 
-    entries.forEach(entry => {
+    filteredEntries.forEach(entry => {
       const project = projects.find(p => p.id === entry.projectId);
       if (!project) return;
       const clientName = project.client;
@@ -44,7 +68,7 @@ export const Reports: React.FC = () => {
     });
 
     return Object.values(data).sort((a, b) => b.totalHours - a.totalHours);
-  }, [entries, projects]);
+  }, [filteredEntries, projects]);
 
   // 2. Group by User (Collaborator) -> Projects
   const teamReport = useMemo(() => {
@@ -58,7 +82,7 @@ export const Reports: React.FC = () => {
         data[u.id] = { user: u, totalHours: 0, projects: {} };
     });
 
-    entries.forEach(entry => {
+    filteredEntries.forEach(entry => {
       if (!data[entry.userId]) return; // Should not happen
       
       const project = projects.find(p => p.id === entry.projectId);
@@ -77,7 +101,7 @@ export const Reports: React.FC = () => {
     return Object.values(data)
       .filter(d => d.totalHours > 0) // Hide users with 0 hours
       .sort((a, b) => b.totalHours - a.totalHours);
-  }, [entries, users, projects]);
+  }, [filteredEntries, users, projects]);
 
   // --- Filtering Logic ---
   
@@ -98,17 +122,102 @@ export const Reports: React.FC = () => {
     alert("Exporting currently filtered view to CSV...");
   };
 
+  // Generate year and month options
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const months = [
+    { value: 1, label: 'Gennaio' },
+    { value: 2, label: 'Febbraio' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Aprile' },
+    { value: 5, label: 'Maggio' },
+    { value: 6, label: 'Giugno' },
+    { value: 7, label: 'Luglio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Settembre' },
+    { value: 10, label: 'Ottobre' },
+    { value: 11, label: 'Novembre' },
+    { value: 12, label: 'Dicembre' }
+  ];
+
   return (
     <div className="space-y-6 pb-20 md:pb-0">
        {/* Header & Controls */}
        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900">Reports & Analytics</h1>
-            <p className="text-slate-500 text-sm">Monitor performance by client or team</p>
+            <h1 className="text-2xl font-bold text-slate-900">Report e Analisi</h1>
+            <p className="text-slate-500 text-sm">Monitora le prestazioni per cliente o team</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon={<Printer size={16}/>} onClick={() => window.print()}>Print</Button>
-            <Button variant="primary" size="sm" icon={<Download size={16}/>} onClick={handleExport}>Export</Button>
+            <Button variant="outline" size="sm" icon={<Printer size={16}/>} onClick={() => window.print()}>Stampa</Button>
+            <Button variant="primary" size="sm" icon={<Download size={16}/>} onClick={handleExport}>Esporta</Button>
+        </div>
+      </div>
+
+      {/* Period Selector */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Calendar size={16} />
+            <span className="font-medium">Periodo:</span>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Period Type Toggle */}
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button
+                onClick={() => setPeriodType('monthly')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  periodType === 'monthly'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Mensile
+              </button>
+              <button
+                onClick={() => setPeriodType('yearly')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  periodType === 'yearly'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Annuale
+              </button>
+            </div>
+
+            {/* Month Selector (only for monthly view) */}
+            {periodType === 'monthly' && (
+              <select
+                value={selectedDate.month}
+                onChange={(e) => setSelectedDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Year Selector */}
+            <select
+              value={selectedDate.year}
+              onChange={(e) => setSelectedDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="text-sm text-slate-500 md:ml-auto">
+            {periodType === 'monthly' 
+              ? `${months[selectedDate.month - 1].label} ${selectedDate.year}`
+              : `Anno ${selectedDate.year}`
+            }
+          </div>
         </div>
       </div>
 
@@ -119,7 +228,7 @@ export const Reports: React.FC = () => {
                 onClick={() => setViewMode('CLIENTS')}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'CLIENTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                  <Building2 size={16} /> Clients
+                  <Building2 size={16} /> Clienti
               </button>
               <button 
                 onClick={() => setViewMode('TEAM')}
@@ -131,7 +240,7 @@ export const Reports: React.FC = () => {
                 onClick={() => setViewMode('RAW')}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'RAW' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                  <FileText size={16} /> Details
+                  <FileText size={16} /> Dettagli
               </button>
           </div>
 
@@ -139,7 +248,7 @@ export const Reports: React.FC = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input 
                 type="text" 
-                placeholder="Filter reports..." 
+                placeholder="Filtra report..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -159,15 +268,15 @@ export const Reports: React.FC = () => {
                               </div>
                               <div className="text-right">
                                   <span className="block text-2xl font-bold text-slate-900">{client.totalHours}h</span>
-                                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Logged</span>
+                                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Totale Registrato</span>
                               </div>
                           </div>
                           
                           <h3 className="text-lg font-bold text-slate-800 mb-1">{client.clientName}</h3>
-                          <p className="text-sm text-slate-500 mb-4">{client.projectsCount} Active Projects</p>
+                          <p className="text-sm text-slate-500 mb-4">{client.projectsCount} Progetti Attivi</p>
 
                           <div className="border-t border-slate-100 pt-4">
-                              <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Effort by Collaborator</p>
+                              <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Impegno per Collaboratore</p>
                               <div className="space-y-3">
                                   {Object.entries(client.users).map(([userId, hours]) => {
                                       const user = users.find(u => u.id === userId);
@@ -217,7 +326,7 @@ export const Reports: React.FC = () => {
                             <div className="flex items-center gap-4">
                                 <div className="text-right hidden sm:block">
                                     <div className="text-xl font-bold text-slate-900">{item.totalHours}h</div>
-                                    <div className="text-xs text-slate-500">Total Worked</div>
+                                    <div className="text-xs text-slate-500">Totale Lavorato</div>
                                 </div>
                                 <div className="p-2 bg-slate-50 rounded-full text-slate-400">
                                     {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -257,15 +366,15 @@ export const Reports: React.FC = () => {
                  <table className="w-full text-left text-sm text-slate-600">
                      <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                          <tr>
-                             <th className="px-6 py-4">Date</th>
-                             <th className="px-6 py-4">User</th>
-                             <th className="px-6 py-4">Client</th>
-                             <th className="px-6 py-4">Project</th>
-                             <th className="px-6 py-4 text-right">Hours</th>
+                             <th className="px-6 py-4">Data</th>
+                             <th className="px-6 py-4">Utente</th>
+                             <th className="px-6 py-4">Cliente</th>
+                             <th className="px-6 py-4">Progetto</th>
+                             <th className="px-6 py-4 text-right">Ore</th>
                          </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
-                         {entries
+                         {filteredEntries
                             .filter(e => 
                                 e.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                 projects.find(p => p.id === e.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
