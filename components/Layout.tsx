@@ -56,6 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               <img src="/edgeworks.png" alt="Edgeworks" className="h-8 w-auto" />
+              <span>Edgeworks</span>
             </button>
 
             {/* Desktop Navigation */}
@@ -78,7 +79,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 >
                   <img 
                     src={user.avatar} 
-                    alt={user.name} 
                     className="w-8 h-8 rounded-full border-2 border-slate-200"
                   />
                   <div className="text-left hidden lg:block">

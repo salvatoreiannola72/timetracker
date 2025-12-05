@@ -1,142 +1,592 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
-import { Role } from '../types';
+import { Role, Client, Project } from '../types';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
-import { Briefcase, MoreHorizontal, X, Plus } from 'lucide-react';
+import { Briefcase, Users, Edit2, Trash2, X, Plus, Search, Mail, Phone, Building2 } from 'lucide-react';
 
 const PROJECT_COLORS = [
-    '#3b82f6', // Blue
-    '#10b981', // Green
-    '#f59e0b', // Amber
-    '#ef4444', // Red
-    '#8b5cf6', // Violet
-    '#ec4899', // Pink
-    '#64748b', // Slate
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b',
 ];
 
+type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-client' | 'delete-project' | 'delete-client' | null;
+
 export const Projects: React.FC = () => {
-  const { user, projects, addProject } = useStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const { user, clients, projects, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient } = useStore();
+  const [activeTab, setActiveTab] = useState<'projects' | 'clients'>('projects');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  
+  const [projectForm, setProjectForm] = useState({
       name: '',
-      client: '',
+      client_id: '',
       color: PROJECT_COLORS[0],
+  });
+
+  const [clientForm, setClientForm] = useState({
+      name: '',
+      email: '',
+      phone: '',
+      vat_number: '',
+      address: '',
+      notes: '',
+      status: 'ACTIVE' as const,
   });
 
   if (user?.role !== Role.ADMIN) {
       return <div className="p-8 text-center text-slate-500">Accesso Negato</div>;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Get client name by ID
+  const getClientName = (clientId: string) => {
+      const client = clients.find(c => c.id === clientId);
+      return client?.name || 'Cliente sconosciuto';
+  };
+
+  // Get projects count by client
+  const getClientProjectsCount = (clientId: string) => {
+      return projects.filter(p => p.client_id === clientId).length;
+  };
+
+  // Get client by ID
+  const getClient = (clientId: string) => {
+      return clients.find(c => c.id === clientId);
+  };
+
+  // Filtered lists with search
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery) return projects;
+    return projects.filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getClientName(p.client_id).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [projects, searchQuery, clients]);
+
+  const filteredClients = useMemo(() => {
+    if (!searchQuery) return clients;
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone?.includes(searchQuery)
+    );
+  }, [clients, searchQuery]);
+
+  // Stats
+  const activeProjects = projects.filter(p => p.status === 'ACTIVE').length;
+  const activeClients = clients.filter(c => c.status === 'ACTIVE').length;
+
+  // Project handlers
+  const handleCreateProject = async (e: React.FormEvent) => {
       e.preventDefault();
-      addProject({
-          name: formData.name,
-          client: formData.client,
-          color: formData.color,
+      const selectedClient = clients.find(c => c.id === projectForm.client_id);
+      await addProject({
+          name: projectForm.name,
+          client: selectedClient?.name || '',
+          client_id: projectForm.client_id,
+          color: projectForm.color,
           status: 'ACTIVE'
+      } as any);
+      setModalType(null);
+      setProjectForm({ name: '', client_id: '', color: PROJECT_COLORS[0] });
+  };
+
+  const handleEditProject = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedProject) return;
+      const selectedClient = clients.find(c => c.id === projectForm.client_id);
+      await updateProject({
+          ...selectedProject,
+          name: projectForm.name,
+          client: selectedClient?.name || '',
+          client_id: projectForm.client_id,
+          color: projectForm.color,
       });
-      setIsModalOpen(false);
-      setFormData({ name: '', client: '', color: PROJECT_COLORS[0] });
+      setModalType(null);
+      setSelectedProject(null);
+      setProjectForm({ name: '', client_id: '', color: PROJECT_COLORS[0] });
+  };
+
+  const handleDeleteProject = async () => {
+      if (!selectedProject) return;
+      await deleteProject(selectedProject.id);
+      setModalType(null);
+      setSelectedProject(null);
+  };
+
+  // Client handlers
+  const handleCreateClient = async (e: React.FormEvent) => {
+      e.preventDefault();
+      await addClient(clientForm);
+      setModalType(null);
+      setClientForm({ name: '', email: '', phone: '', vat_number: '', address: '', notes: '', status: 'ACTIVE' });
+  };
+
+  const handleEditClient = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedClient) return;
+      await updateClient({
+          ...selectedClient,
+          ...clientForm
+      });
+      setModalType(null);
+      setSelectedClient(null);
+      setClientForm({ name: '', email: '', phone: '', vat_number: '', address: '', notes: '', status: 'ACTIVE' });
+  };
+
+  const handleDeleteClient = async () => {
+      if (!selectedClient) return;
+      await deleteClient(selectedClient.id);
+      setModalType(null);
+      setSelectedClient(null);
+  };
+
+  // Open modals
+  const openEditProject = (project: Project) => {
+      setSelectedProject(project);
+      setProjectForm({
+          name: project.name,
+          client_id: project.client_id,
+          color: project.color
+      });
+      setModalType('edit-project');
+  };
+
+  const openDeleteProject = (project: Project) => {
+      setSelectedProject(project);
+      setModalType('delete-project');
+  };
+
+  const openEditClient = (client: Client) => {
+      setSelectedClient(client);
+      setClientForm({
+          name: client.name,
+          email: client.email || '',
+          phone: client.phone || '',
+          vat_number: client.vat_number || '',
+          address: client.address || '',
+          notes: client.notes || '',
+          status: client.status
+      });
+      setModalType('edit-client');
+  };
+
+  const openDeleteClient = (client: Client) => {
+      setSelectedClient(client);
+      setModalType('delete-client');
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header with Search */}
+      <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900">Progetti</h1>
-            <p className="text-slate-500 text-sm">Progetti clienti attivi</p>
+            <h1 className="text-2xl font-bold text-slate-900">Gestione Progetti</h1>
+            <p className="text-slate-500 text-sm">Gestisci progetti e clienti da un'unica interfaccia</p>
         </div>
-        <Button 
-            onClick={() => setIsModalOpen(true)}
-            icon={<Plus size={18} />}
-        >
-            Nuovo Progetto
-        </Button>
+        
+        <div className="flex gap-3">
+          {/* Search */}
+          <div className="relative flex-1 md:w-72">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder={`Cerca ${activeTab === 'projects' ? 'progetto' : 'cliente'}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Create Button */}
+          <Button 
+              onClick={() => setModalType(activeTab === 'projects' ? 'create-project' : 'create-client')}
+              icon={<Plus size={18} />}
+              className="whitespace-nowrap"
+          >
+              Nuovo
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map(project => (
-            <Card key={project.id} className="hover:shadow-md transition-shadow group">
-                <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110" style={{ backgroundColor: `${project.color}20` }}>
-                            <Briefcase size={20} style={{ color: project.color }} />
-                        </div>
-                        <button className="text-slate-400 hover:text-slate-600">
-                            <MoreHorizontal size={20} />
-                        </button>
-                    </div>
-                    <h3 className="font-bold text-slate-900 text-lg mb-1">{project.name}</h3>
-                    <p className="text-slate-500 text-sm mb-4">{project.client}</p>
-                    <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${project.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {project.status === 'ACTIVE' ? 'ATTIVO' : 'ARCHIVIATO'}
-                        </span>
-                    </div>
-                </div>
-            </Card>
-        ))}
-      </div>
-
-      {/* Add Project Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-semibold text-slate-900">Crea Nuovo Progetto</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                    <X size={20}/>
-                </button>
+      {/* Tabs */}
+      <div className="border-b border-slate-200">
+        <div className="flex gap-6">
+          <button
+            onClick={() => { setActiveTab('projects'); setSearchQuery(''); }}
+            className={`pb-3 px-2 border-b-2 transition-all ${
+              activeTab === 'projects'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Briefcase size={20} />
+              <span className="font-medium">Progetti</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                activeTab === 'projects' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'bg-slate-100 text-slate-600'
+              }`}>
+                {projects.length}
+              </span>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Progetto</label>
-                    <input 
-                        type="text" 
-                        required
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-                        placeholder="es. Redesign Sito Web"
-                        value={formData.name}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
-                    />
-                </div>
+          </button>
+          <button
+            onClick={() => { setActiveTab('clients'); setSearchQuery(''); }}
+            className={`pb-3 px-2 border-b-2 transition-all ${
+              activeTab === 'clients'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users size={20} />
+              <span className="font-medium">Clienti</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                activeTab === 'clients' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'bg-slate-100 text-slate-600'
+              }`}>
+                {clients.length}
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Cliente</label>
-                    <input 
-                        type="text" 
-                        required
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-                        placeholder="es. Acme Srl"
-                        value={formData.client}
-                        onChange={e => setFormData({...formData, client: e.target.value})}
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Colore Etichetta</label>
-                    <div className="flex flex-wrap gap-3">
-                        {PROJECT_COLORS.map(color => (
-                            <button
-                                key={color}
-                                type="button"
-                                onClick={() => setFormData({...formData, color})}
-                                className={`w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${formData.color === color ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-105'}`}
-                                style={{ backgroundColor: color }}
-                            >
-                                {formData.color === color && <div className="w-2 h-2 bg-white rounded-full" />}
-                            </button>
-                        ))}
+      {/* Content */}
+      {activeTab === 'projects' ? (
+        filteredProjects.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Briefcase className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {searchQuery ? 'Nessun progetto trovato' : 'Nessun progetto'}
+            </h3>
+            <p className="text-slate-500 mb-6">
+              {searchQuery ? 'Prova con un altro termine di ricerca' : 'Inizia creando il tuo primo progetto'}
+            </p>
+            {!searchQuery && (
+              <Button onClick={() => setModalType('create-project')} icon={<Plus size={18} />}>
+                Crea Progetto
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map(project => {
+              const client = getClient(project.client_id);
+              return (
+                <Card key={project.id} className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 hover:scale-[1.02]" style={{ borderLeftColor: project.color }}>
+                  <div className="p-5">
+                    {/* Actions - sempre visibili ma opacità ridotta */}
+                    <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEditProject(project)}
+                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Modifica"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => openDeleteProject(project)}
+                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Elimina"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                </div>
 
-                <div className="pt-4 flex gap-3">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>Annulla</Button>
-                    <Button type="submit" className="flex-1">Crea Progetto</Button>
+                    {/* Title */}
+                    <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2">{project.name}</h3>
+
+                    {/* Client pill */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full">
+                        <Building2 size={14} className="text-slate-600" />
+                        <span className="text-sm font-medium text-slate-700">{client?.name || 'N/D'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        filteredClients.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {searchQuery ? 'Nessun cliente trovato' : 'Nessun cliente'}
+            </h3>
+            <p className="text-slate-500 mb-6">
+              {searchQuery ? 'Prova con un altro termine di ricerca' : 'Inizia creando il tuo primo cliente'}
+            </p>
+            {!searchQuery && (
+              <Button onClick={() => setModalType('create-client')} icon={<Plus size={18} />}>
+                Crea Cliente
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredClients.map(client => (
+              <Card key={client.id} className="group relative hover:shadow-lg transition-all duration-200 border-l-4 border-slate-300 hover:border-blue-500 hover:scale-[1.02]">
+                <div className="p-5">
+                  {/* Actions */}
+                  <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openEditClient(client)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Modifica"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => openDeleteClient(client)}
+                      className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Elimina"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Name & Projects count */}
+                  <h3 className="font-bold text-slate-900 text-lg mb-1">{client.name}</h3>
+                  <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
+                    <Briefcase size={14} />
+                    {getClientProjectsCount(client.id)} progetti
+                  </p>
+
+                  {/* Contact info */}
+                  <div className="space-y-2 mb-4">
+                    {client.email && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Mail size={14} className="text-slate-400" />
+                        <span className="truncate">{client.email}</span>
+                      </div>
+                    )}
+                    {client.phone && (
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Phone size={14} className="text-slate-400" />
+                        <span>{client.phone}</span>
+                      </div>
+                    )}
+                    {client.vat_number && (
+                      <div className="text-xs text-slate-500">
+                        P.IVA: {client.vat_number}
+                      </div>
+                    )}
+                  </div>                 
                 </div>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Modals - unchanged */}
+      {(modalType === 'create-project' || modalType === 'edit-project') && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                {modalType === 'create-project' ? 'Nuovo Progetto' : 'Modifica Progetto'}
+              </h2>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={modalType === 'create-project' ? handleCreateProject : handleEditProject} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Nome Progetto</label>
+                <input
+                  type="text"
+                  value={projectForm.name}
+                  onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="es. Website Redesign"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
+                <select
+                  value={projectForm.client_id}
+                  onChange={(e) => setProjectForm({ ...projectForm, client_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Seleziona cliente</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Colore</label>
+                <div className="flex gap-2 flex-wrap">
+                  {PROJECT_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setProjectForm({ ...projectForm, color })}
+                      className={`w-10 h-10 rounded-full border-2 transition-all ${
+                        projectForm.color === color 
+                          ? 'border-slate-900 scale-110 shadow-lg' 
+                          : 'border-slate-200 hover:border-slate-400'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                  Annulla
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {modalType === 'create-project' ? 'Crea' : 'Salva'}
+                </Button>
+              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {(modalType === 'create-client' || modalType === 'edit-client') && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                {modalType === 'create-client' ? 'Nuovo Cliente' : 'Modifica Cliente'}
+              </h2>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={modalType === 'create-client' ? handleCreateClient : handleEditClient} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Nome Cliente *</label>
+                <input
+                  type="text"
+                  value={clientForm.name}
+                  onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="es. Acme Srl"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                <input
+                  type="email"
+                  value={clientForm.email}
+                  onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="info@acme.it"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Telefono</label>
+                <input
+                  type="tel"
+                  value={clientForm.phone}
+                  onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="+39 02 1234567"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">P.IVA</label>
+                <input
+                  type="text"
+                  value={clientForm.vat_number}
+                  onChange={(e) => setClientForm({ ...clientForm, vat_number: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="IT12345678901"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Indirizzo</label>
+                <input
+                  type="text"
+                  value={clientForm.address}
+                  onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Via Roma 1, Milano"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Note</label>
+                <textarea
+                  value={clientForm.notes}
+                  onChange={(e) => setClientForm({ ...clientForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Note aggiuntive..."
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                  Annulla
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {modalType === 'create-client' ? 'Crea' : 'Salva'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {modalType === 'delete-project' && selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Elimina Progetto</h2>
+            <p className="text-slate-600 mb-6">
+              Sei sicuro di voler eliminare il progetto <strong>{selectedProject.name}</strong>? 
+              Questa azione è irreversibile.
+            </p>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                Annulla
+              </Button>
+              <Button type="button" onClick={handleDeleteProject} className="flex-1 bg-red-600 hover:bg-red-700">
+                Elimina
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalType === 'delete-client' && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Elimina Cliente</h2>
+            <p className="text-slate-600 mb-6">
+              Sei sicuro di voler eliminare il cliente <strong>{selectedClient.name}</strong>?
+              {getClientProjectsCount(selectedClient.id) > 0 && (
+                <span className="block mt-2 text-red-600 font-semibold">
+                  Attenzione: questo cliente ha {getClientProjectsCount(selectedClient.id)} progetti associati. 
+                  L'eliminazione potrebbe non essere possibile.
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                Annulla
+              </Button>
+              <Button type="button" onClick={handleDeleteClient} className="flex-1 bg-red-600 hover:bg-red-700">
+                Elimina
+              </Button>
+            </div>
           </div>
         </div>
       )}

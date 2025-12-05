@@ -9,7 +9,7 @@ const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno
 type ViewType = 'week' | 'month' | 'year';
 
 export const Timesheet: React.FC = () => {
-  const { user, entries, projects, addEntry, deleteEntry } = useStore();
+  const { user, entries, projects, clients, addEntry, deleteEntry } = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,6 +17,7 @@ export const Timesheet: React.FC = () => {
   
   // Form State
   const [formData, setFormData] = useState({
+    clientId: '',
     projectId: '',
     hours: 4,
     description: '',
@@ -105,6 +106,12 @@ export const Timesheet: React.FC = () => {
     }
   }, [entries, user, weekDates, currentDate, viewType]);
 
+  // Filter projects by selected client
+  const filteredProjectsByClient = useMemo(() => {
+    if (!formData.clientId) return projects;
+    return projects.filter(p => p.client_id === formData.clientId);
+  }, [projects, formData.clientId]);
+
   const handlePrev = () => {
     const d = new Date(currentDate);
     if (viewType === 'week') {
@@ -146,7 +153,8 @@ export const Timesheet: React.FC = () => {
     defaultEnd.setDate(defaultEnd.getDate() + 14);
     
     setFormData({ 
-        projectId: projects[0]?.id || '', 
+        clientId: '',
+        projectId: '', 
         hours: 4, 
         description: '',
         recurrence: 'NONE',
@@ -474,15 +482,34 @@ export const Timesheet: React.FC = () => {
             
             <form onSubmit={handleSaveEntry} className="p-6 space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
                     <select 
                         required
                         className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.clientId}
+                        onChange={e => setFormData({...formData, clientId: e.target.value, projectId: ''})}
+                    >
+                        <option value="">Seleziona cliente...</option>
+                        {clients.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
+                    <select 
+                        required
+                        disabled={!formData.clientId}
+                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                         value={formData.projectId}
                         onChange={e => setFormData({...formData, projectId: e.target.value})}
                     >
-                        {projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.client})</option>
+                        <option value="">
+                            {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
+                        </option>
+                        {filteredProjectsByClient.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                     </select>
                 </div>

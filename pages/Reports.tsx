@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
-import { Download, Printer, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { Download, FileSpreadsheet, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import { User, Project } from '../types';
+import * as XLSX from 'xlsx';
 
 type ViewMode = 'CLIENTS' | 'TEAM' | 'RAW';
 type PeriodType = 'monthly' | 'yearly';
@@ -118,8 +119,86 @@ export const Reports: React.FC = () => {
       setExpandedCard(expandedCard === id ? null : id);
   };
 
-  const handleExport = () => {
-    alert("Exporting currently filtered view to CSV...");
+  const handleExportCSV = () => {
+    let csvContent = '';
+    let filename = '';
+
+    if (viewMode === 'CLIENTS') {
+      // CSV for Clients view
+      filename = `report_clienti_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
+      csvContent = 'Cliente,Ore Totali,Progetti Attivi\n';
+      filteredClients.forEach(client => {
+        csvContent += `"${client.clientName}",${client.totalHours},${client.projectsCount}\n`;
+      });
+    } else if (viewMode === 'TEAM') {
+      // CSV for Team view
+      filename = `report_team_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
+      csvContent = 'Nome,Email,Ore Totali\n';
+      filteredTeam.forEach(item => {
+        csvContent += `"${item.user.name}","${item.user.email}",${item.totalHours}\n`;
+      });
+    } else if (viewMode === 'RAW') {
+      // CSV for Raw/Details view
+      filename = `report_dettagli_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
+      csvContent = 'Data,Utente,Cliente,Progetto,Ore\n';
+      filteredEntries.forEach(entry => {
+        const user = users.find(u => u.id === entry.userId);
+        const project = projects.find(p => p.id === entry.projectId);
+        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","${project?.client || ''}","${project?.name || ''}",${entry.hours}\n`;
+      });
+    }
+
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
+  const handleExportExcel = () => {
+    let worksheet: XLSX.WorkSheet;
+    let filename = '';
+
+    if (viewMode === 'CLIENTS') {
+      // Excel for Clients view
+      filename = `report_clienti_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.xlsx`;
+      const data = filteredClients.map(client => ({
+        'Cliente': client.clientName,
+        'Ore Totali': client.totalHours,
+        'Progetti Attivi': client.projectsCount
+      }));
+      worksheet = XLSX.utils.json_to_sheet(data);
+    } else if (viewMode === 'TEAM') {
+      // Excel for Team view
+      filename = `report_team_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.xlsx`;
+      const data = filteredTeam.map(item => ({
+        'Nome': item.user.name,
+        'Email': item.user.email,
+        'Ore Totali': item.totalHours
+      }));
+      worksheet = XLSX.utils.json_to_sheet(data);
+    } else if (viewMode === 'RAW') {
+      // Excel for Raw/Details view
+      filename = `report_dettagli_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.xlsx`;
+      const data = filteredEntries.map(entry => {
+        const user = users.find(u => u.id === entry.userId);
+        const project = projects.find(p => p.id === entry.projectId);
+        return {
+          'Data': entry.date,
+          'Utente': user?.name || 'Unknown',
+          'Cliente': project?.client || '',
+          'Progetto': project?.name || '',
+          'Ore': entry.hours
+        };
+      });
+      worksheet = XLSX.utils.json_to_sheet(data);
+    }
+
+    // Create workbook and download
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet!, 'Report');
+    XLSX.writeFile(workbook, filename);
   };
 
   // Generate year and month options
@@ -149,8 +228,8 @@ export const Reports: React.FC = () => {
             <p className="text-slate-500 text-sm">Monitora le prestazioni per cliente o team</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon={<Printer size={16}/>} onClick={() => window.print()}>Stampa</Button>
-            <Button variant="primary" size="sm" icon={<Download size={16}/>} onClick={handleExport}>Esporta</Button>
+            <Button variant="outline" size="sm" icon={<Download size={16}/>} onClick={handleExportCSV}>Esporta CSV</Button>
+            <Button variant="primary" size="sm" icon={<FileSpreadsheet size={16}/>} onClick={handleExportExcel}>Esporta Excel</Button>
         </div>
       </div>
 
