@@ -114,7 +114,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loadUsers(),
         loadClients(),
         loadProjects(),
-        loadEntries(employee?.id)
+        loadEntries(employee?.id, userProfile.is_staff)
       ]);
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -193,11 +193,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loadEntries = async (employeeId?: number) => {
-    if (!employeeId) return;
+  const loadEntries = async (employeeId?: number, isAdmin: boolean = false) => {
+    if (!employeeId && !isAdmin) return;
 
     // Join timesheets_timesheet with timesheets_timework
-    const { data: timeworks, error } = await supabase
+    let query = supabase
       .from('timesheets_timework')
       .select(`
         *,
@@ -211,9 +211,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             user_id
           )
         )
-      `)
-      .eq('timesheets_timesheet.employee_id', employeeId)
-      .order('timesheets_timesheet(day)', { ascending: false });
+      `);
+
+    // If not admin, filter by employee_id
+    if (!isAdmin && employeeId) {
+      query = query.eq('timesheets_timesheet.employee_id', employeeId);
+    }
+
+    const { data: timeworks, error } = await query.order('timesheets_timesheet(day)', { ascending: false });
 
     if (!error && timeworks) {
       const entriesData: TimesheetEntry[] = timeworks.map(tw => {
@@ -467,7 +472,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (error) throw error;
 
       // Reload entries to get updated list
-      await loadEntries(user.employee_id);
+      await loadEntries(user.employee_id, user.is_staff);
     } catch (error) {
       console.error('Error adding entry:', error);
       throw error;

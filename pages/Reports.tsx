@@ -10,7 +10,7 @@ type ViewMode = 'CLIENTS' | 'PROJECTS' | 'TEAM';
 type PeriodType = 'monthly' | 'yearly';
 
 export const Reports: React.FC = () => {
-  const { entries, projects, users } = useStore();
+  const { entries, projects, users, clients } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>('CLIENTS');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -55,8 +55,8 @@ export const Reports: React.FC = () => {
     filteredEntries.forEach(entry => {
       const project = projects.find(p => p.id === entry.projectId);
       if (!project) return;
-      const customer = projects.find(p => p.id === entry.projectId)?.customer_id;
-      const clientName = `Cliente ${customer || 'Unknown'}`;
+      const client = clients.find(c => c.id === project.customer_id);
+      const clientName = client?.name || `Cliente ${project.customer_id}`;
 
       if (!data[clientName]) {
         data[clientName] = { clientName, totalHours: 0, projects: {} };
@@ -77,7 +77,7 @@ export const Reports: React.FC = () => {
     });
 
     return Object.values(data).sort((a, b) => b.totalHours - a.totalHours);
-  }, [filteredEntries, projects]);
+  }, [filteredEntries, projects, clients]);
 
   // 2. Group by User (Collaborator) -> Projects
   const teamReport = useMemo(() => {
@@ -126,10 +126,11 @@ export const Reports: React.FC = () => {
       if (!project) return;
       
       if (!data[entry.projectId]) {
+        const client = clients.find(c => c.id === project.customer_id);
         data[entry.projectId] = {
           project,
           totalHours: 0,
-          clientName: `Cliente ${project.customer_id}`,
+          clientName: client?.name || `Cliente ${project.customer_id}`,
           users: {}
         };
       }
@@ -148,7 +149,7 @@ export const Reports: React.FC = () => {
     });
 
     return Object.values(data).sort((a, b) => b.totalHours - a.totalHours);
-  }, [filteredEntries, projects, users]);
+  }, [filteredEntries, projects, users, clients]);
 
   // --- Filtering Logic ---
   
@@ -199,7 +200,8 @@ export const Reports: React.FC = () => {
       filteredEntries.forEach(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
-        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","Cliente ${project?.customer_id || ''}","${project?.name || ''}",${entry.hours}\n`;
+        const client = clients.find(c => c.id === project?.customer_id);
+        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","${client?.name || `Cliente ${project?.customer_id}` || ''}","${project?.name || ''}",${entry.hours}\n`;
       });
     }
 
@@ -253,10 +255,11 @@ export const Reports: React.FC = () => {
       const detailData = filteredEntries.map(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
+        const client = clients.find(c => c.id === project?.customer_id);
         return {
           'Data': entry.date,
           'Utente': user?.name || 'Unknown',
-          'Cliente': `Cliente ${project?.customer_id || ''}`,
+          'Cliente': client?.name || `Cliente ${project?.customer_id}` || '',
           'Progetto': project?.name || '',
           'Ore': entry.hours
         };

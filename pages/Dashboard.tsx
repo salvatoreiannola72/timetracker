@@ -498,6 +498,129 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Admin Team Overview - After Charts */}
+      {user?.is_staff && (
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Panoramica Team - Gestione Assenze</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {users.map(teamMember => {
+              const vacationPercentage = ((teamMember.vacation_days_used || 0) / (teamMember.vacation_days_total || 22)) * 100;
+              const sickPercentage = ((teamMember.sick_days_used || 0) / (teamMember.sick_days_total || 180)) * 100;
+              const permitPercentage = ((teamMember.permit_hours_used || 0) / (teamMember.permit_hours_total || 32)) * 100;
+              
+              return (
+                <Card key={teamMember.id} className="hover:shadow-lg transition-shadow">
+                  <div className="p-5">
+                    {/* User Header */}
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+                      <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-md">
+                        <span className="text-lg font-bold">
+                          {teamMember.first_name?.[0]?.toUpperCase()}{teamMember.last_name?.[0]?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-slate-900 truncate">{teamMember.name}</h3>
+                        <p className="text-xs text-slate-500 truncate">{teamMember.email}</p>
+                        {teamMember.job_title && (
+                          <p className="text-xs text-blue-600 font-medium truncate">{teamMember.job_title}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Leave Stats */}
+                    <div className="space-y-4">
+                      {/* Vacation Days */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Umbrella size={16} className="text-green-600" />
+                            <span className="text-xs font-medium text-slate-700">Ferie</span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-sm font-bold text-slate-900">
+                              {(teamMember.vacation_days_total || 22) - (teamMember.vacation_days_used || 0)}
+                            </span>
+                            <span className="text-xs text-slate-500">/ {teamMember.vacation_days_total || 22}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full transition-all duration-300 rounded-full"
+                            style={{ 
+                              width: `${Math.min(vacationPercentage, 100)}%`,
+                              backgroundColor: vacationPercentage > 80 ? '#ef4444' : vacationPercentage > 50 ? '#f59e0b' : '#10b981'
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Utilizzati: {teamMember.vacation_days_used || 0} ({vacationPercentage.toFixed(0)}%)
+                        </p>
+                      </div>
+
+                      {/* Sick Days */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Stethoscope size={16} className="text-red-600" />
+                            <span className="text-xs font-medium text-slate-700">Malattia</span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-sm font-bold text-slate-900">
+                              {(teamMember.sick_days_total || 180) - (teamMember.sick_days_used || 0)}
+                            </span>
+                            <span className="text-xs text-slate-500">/ {teamMember.sick_days_total || 180}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full transition-all duration-300 rounded-full"
+                            style={{ 
+                              width: `${Math.min(sickPercentage, 100)}%`,
+                              backgroundColor: sickPercentage > 80 ? '#ef4444' : sickPercentage > 50 ? '#f59e0b' : '#10b981'
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Utilizzati: {teamMember.sick_days_used || 0} ({sickPercentage.toFixed(0)}%)
+                        </p>
+                      </div>
+
+                      {/* Permits */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <PermitIcon size={16} className="text-amber-600" />
+                            <span className="text-xs font-medium text-slate-700">Permessi (ore)</span>
+                          </div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-sm font-bold text-slate-900">
+                              {(teamMember.permit_hours_total || 32) - (teamMember.permit_hours_used || 0)}
+                            </span>
+                            <span className="text-xs text-slate-500">/ {teamMember.permit_hours_total || 32}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full transition-all duration-300 rounded-full"
+                            style={{ 
+                              width: `${Math.min(permitPercentage, 100)}%`,
+                              backgroundColor: permitPercentage > 80 ? '#ef4444' : permitPercentage > 50 ? '#f59e0b' : '#10b981'
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Utilizzate: {teamMember.permit_hours_used || 0}h ({permitPercentage.toFixed(0)}%)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
