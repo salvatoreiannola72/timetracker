@@ -86,7 +86,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             <div className="hidden md:flex items-center gap-2">
               <NavLink page="dashboard" icon={LayoutDashboard} label="Dashboard" />
               <NavLink page="timesheet" icon={Calendar} label="Timesheet" />
-              {user.role === Role.ADMIN && (
+              {user.is_staff && (
                 <>
                   <NavLink page="projects" icon={Briefcase} label="Progetti" />
                   <NavLink page="reports" icon={PieChart} label="Report" />
@@ -101,14 +101,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-slate-50 transition-colors"
                 >
-                  <img 
-                    src={user.avatar} 
-                    className="w-8 h-8 rounded-full border-2 border-slate-200"
-                    alt={user.name}
-                  />
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 bg-blue-100 flex items-center justify-center">
+                    <span className="text-xs font-semibold text-blue-600">
+                      {user.first_name?.[0]?.toUpperCase()}{user.last_name?.[0]?.toUpperCase()}
+                    </span>
+                  </div>
                   <div className="text-left hidden lg:block">
                     <p className="text-sm font-medium text-slate-900">{user.name}</p>
-                    <p className="text-xs text-slate-500 capitalize">{user.role.toLowerCase()}</p>
+                    <p className="text-xs text-slate-500 capitalize">{user.is_staff ? 'Admin' : 'Collaboratore'}</p>
                   </div>
                   <ChevronDown size={16} className="text-slate-400 hidden md:block" />
                 </button>
@@ -153,7 +153,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         <div className="flex items-center justify-around px-2 py-1 safe-bottom">
           <MobileNavItem page="dashboard" icon={LayoutDashboard} label="Home" />
           <MobileNavItem page="timesheet" icon={Calendar} label="Timesheet" />
-          {user.role === Role.ADMIN && (
+          {user.is_staff && (
             <>
               <MobileNavItem page="projects" icon={Briefcase} label="Progetti" />
               <MobileNavItem page="reports" icon={PieChart} label="Report" />

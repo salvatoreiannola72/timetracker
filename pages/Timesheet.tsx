@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
 import { Button } from '../components/Button';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock } from 'lucide-react';
+import { EntryType } from '../types';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -17,6 +18,7 @@ export const Timesheet: React.FC = () => {
   
   // Form State
   const [formData, setFormData] = useState({
+    entryType: EntryType.WORK,
     clientId: '',
     projectId: '',
     hours: 4,
@@ -107,9 +109,9 @@ export const Timesheet: React.FC = () => {
   }, [entries, user, weekDates, currentDate, viewType]);
 
   // Filter projects by selected client
-  const filteredProjectsByClient = useMemo(() => {
-    if (!formData.clientId) return projects;
-    return projects.filter(p => p.client_id === formData.clientId);
+  const filteredProjects = useMemo(() => {
+    if (!formData.clientId) return [];
+    return projects.filter(p => p.customer_id === Number(formData.clientId));
   }, [projects, formData.clientId]);
 
   const handlePrev = () => {
@@ -153,6 +155,7 @@ export const Timesheet: React.FC = () => {
     defaultEnd.setDate(defaultEnd.getDate() + 14);
     
     setFormData({ 
+        entryType: EntryType.WORK,
         clientId: '',
         projectId: '', 
         hours: 4, 
@@ -170,9 +173,10 @@ export const Timesheet: React.FC = () => {
     const createEntry = (date: string) => {
         addEntry({
             userId: user.id,
-            projectId: formData.projectId,
+            projectId: formData.entryType === EntryType.WORK ? formData.projectId : null,
             date: date,
             hours: Number(formData.hours),
+            entry_type: formData.entryType,
             description: formData.description
         });
     };
@@ -304,14 +308,27 @@ export const Timesheet: React.FC = () => {
                 <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
                   {dayEntries.map(entry => {
                     const project = projects.find(p => p.id === entry.projectId);
+                    const isLeaveEntry = entry.entry_type !== EntryType.WORK;
+                    const entryConfig = {
+                      [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                      [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                      [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                      [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                    };
+                    const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                    const Icon = config.icon;
+                    
                     return (
                       <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                         <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: project?.color || '#ccc' }}></div>
+                         <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
                          <div className="pl-2">
-                             <p className="text-xs font-bold text-slate-700 truncate">{project?.name}</p>
-                             <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>
+                             <div className="flex items-center gap-2">
+                               <Icon size={12} style={{ color: config.color }} />
+                               <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                             </div>
+                             {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                              <div className="mt-2 flex justify-between items-center">
-                                 <span className="text-xs font-semibold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{entry.hours}h</span>
+                                 <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
                                  <button 
                                   onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                   className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
@@ -481,61 +498,152 @@ export const Timesheet: React.FC = () => {
             </div>
             
             <form onSubmit={handleSaveEntry} className="p-6 space-y-4">
+                {/* Entry Type Selection */}
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
-                    <select 
-                        required
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={formData.clientId}
-                        onChange={e => setFormData({...formData, clientId: e.target.value, projectId: ''})}
-                    >
-                        <option value="">Seleziona cliente...</option>
-                        {clients.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">Tipo di Registrazione</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setFormData({...formData, entryType: EntryType.WORK, hours: 4})}
+                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                formData.entryType === EntryType.WORK
+                                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                    : 'border-slate-200 hover:border-blue-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Briefcase size={18} className={formData.entryType === EntryType.WORK ? 'text-blue-600' : 'text-slate-400'} />
+                                <span className={`font-medium text-sm ${formData.entryType === EntryType.WORK ? 'text-blue-900' : 'text-slate-600'}`}>Lavoro</span>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: ''})}
+                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                formData.entryType === EntryType.VACATION
+                                    ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
+                                    : 'border-slate-200 hover:border-green-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Umbrella size={18} className={formData.entryType === EntryType.VACATION ? 'text-green-600' : 'text-slate-400'} />
+                                <span className={`font-medium text-sm ${formData.entryType === EntryType.VACATION ? 'text-green-900' : 'text-slate-600'}`}>Ferie</span>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: ''})}
+                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                formData.entryType === EntryType.SICK_LEAVE
+                                    ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
+                                    : 'border-slate-200 hover:border-red-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Stethoscope size={18} className={formData.entryType === EntryType.SICK_LEAVE ? 'text-red-600' : 'text-slate-400'} />
+                                <span className={`font-medium text-sm ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-900' : 'text-slate-600'}`}>Malattia</span>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: ''})}
+                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                formData.entryType === EntryType.PERMIT
+                                    ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                                    : 'border-slate-200 hover:border-orange-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Clock size={18} className={formData.entryType === EntryType.PERMIT ? 'text-orange-600' : 'text-slate-400'} />
+                                <span className={`font-medium text-sm ${formData.entryType === EntryType.PERMIT ? 'text-orange-900' : 'text-slate-600'}`}>Permesso</span>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    {/* Days/Hours Remaining Info */}
+                    {formData.entryType === EntryType.VACATION && (
+                        <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
+                            📅 Giorni ferie rimanenti: <strong>{user?.vacation_days_remaining || 0}</strong>
+                        </div>
+                    )}
+                    {formData.entryType === EntryType.SICK_LEAVE && (
+                        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                            🏥 Giorni malattia rimanenti: <strong>{user?.sick_days_remaining || 0}</strong>
+                        </div>
+                    )}
+                    {formData.entryType === EntryType.PERMIT && (
+                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                            ⏰ Ore permesso rimanenti: <strong>{user?.permit_hours_remaining || 0}h</strong>
+                        </div>
+                    )}
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
-                    <select 
-                        required
-                        disabled={!formData.clientId}
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        value={formData.projectId}
-                        onChange={e => setFormData({...formData, projectId: e.target.value})}
-                    >
-                        <option value="">
-                            {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
-                        </option>
-                        {filteredProjectsByClient.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                </div>
+                {/* Client and Project - Only for WORK type */}
+                {formData.entryType === EntryType.WORK && (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                            <select 
+                                required
+                                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={formData.clientId}
+                                onChange={e => setFormData({...formData, clientId: e.target.value, projectId: ''})}
+                            >
+                                <option value="">Seleziona cliente...</option>
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
 
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
+                            <select 
+                                required
+                                disabled={!formData.clientId}
+                                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                value={formData.projectId}
+                                onChange={e => setFormData({...formData, projectId: e.target.value})}
+                            >
+                                <option value="">
+                                    {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
+                                </option>
+                                {filteredProjects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </>
+                )}
+
+                {/* Hours Input */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Durata (Ore)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            {formData.entryType === EntryType.PERMIT ? 'Ore Permesso' : 'Durata (Ore)'}
+                        </label>
                         <input 
                             type="number" 
                             min="0.5" 
                             step="0.5" 
                             max="24"
                             required
-                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                            disabled={formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE}
+                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                             value={formData.hours}
                             onChange={e => setFormData({...formData, hours: Number(e.target.value)})}
                         />
+                        {(formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE) && (
+                            <p className="text-xs text-slate-500 mt-1">Fisso a 8h (1 giorno)</p>
+                        )}
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Descrizione</label>
                     <textarea 
-                        required
                         className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
-                        placeholder="Su cosa hai lavorato?"
+                        placeholder={formData.entryType === EntryType.WORK ? "Su cosa hai lavorato?" : "Note (opzionale)"}
                         value={formData.description}
                         onChange={e => setFormData({...formData, description: e.target.value})}
                     />

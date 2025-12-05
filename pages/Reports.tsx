@@ -55,7 +55,8 @@ export const Reports: React.FC = () => {
     filteredEntries.forEach(entry => {
       const project = projects.find(p => p.id === entry.projectId);
       if (!project) return;
-      const clientName = project.client;
+      const customer = projects.find(p => p.id === entry.projectId)?.customer_id;
+      const clientName = `Cliente ${customer || 'Unknown'}`;
 
       if (!data[clientName]) {
         data[clientName] = { clientName, totalHours: 0, projects: {} };
@@ -96,7 +97,7 @@ export const Reports: React.FC = () => {
       const project = projects.find(p => p.id === entry.projectId);
       const projId = entry.projectId;
       const projName = project?.name || 'Unknown';
-      const projColor = project?.color || '#cbd5e1';
+      const projColor = '#3b82f6'; // Use default blue
 
       data[entry.userId].totalHours += entry.hours;
       
@@ -128,7 +129,7 @@ export const Reports: React.FC = () => {
         data[entry.projectId] = {
           project,
           totalHours: 0,
-          clientName: project.client,
+          clientName: `Cliente ${project.customer_id}`,
           users: {}
         };
       }
@@ -198,7 +199,7 @@ export const Reports: React.FC = () => {
       filteredEntries.forEach(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
-        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","${project?.client || ''}","${project?.name || ''}",${entry.hours}\n`;
+        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","Cliente ${project?.customer_id || ''}","${project?.name || ''}",${entry.hours}\n`;
       });
     }
 
@@ -255,7 +256,7 @@ export const Reports: React.FC = () => {
         return {
           'Data': entry.date,
           'Utente': user?.name || 'Unknown',
-          'Cliente': project?.client || '',
+          'Cliente': `Cliente ${project?.customer_id || ''}`,
           'Progetto': project?.name || '',
           'Ore': entry.hours
         };
@@ -426,14 +427,12 @@ export const Reports: React.FC = () => {
                                               {/* Progetto */}
                                               <div>
                                                   <div className="flex items-center justify-between text-xs mb-1">
-                                                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: projData.project.color }}></div>
-                                                          <span className="font-medium text-slate-700 truncate">{projData.project.name}</span>
-                                                      </div>
+                                                      <div className="w-2 h-2 rounded-full flex-shrink-0 bg-blue-500"></div>
+                                                      <span className="font-medium text-slate-700 truncate">{projData.project.name}</span>
                                                       <span className="text-slate-500 ml-2 flex-shrink-0">{projData.hours}h ({percentage}%)</span>
                                                   </div>
                                                   <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                      <div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: projData.project.color }}></div>
+                                                      <div className="h-full rounded-full bg-blue-500" style={{ width: `${percentage}%` }}></div>
                                                   </div>
                                               </div>
                                               
@@ -444,7 +443,11 @@ export const Reports: React.FC = () => {
                                                       const userPercentage = Math.round((hours as number / projData.hours) * 100);
                                                       return (
                                                           <div key={userId} className="flex items-center gap-2 text-xs text-slate-600">
-                                                              <img src={user?.avatar} className="w-5 h-5 rounded-full border border-white shadow-sm" alt="" />
+                                                              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center border border-white shadow-sm">
+                                                                <span className="text-[8px] font-semibold text-blue-600">
+                                                                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                                                                </span>
+                                                              </div>
                                                               <span className="flex-1 min-w-0 truncate">{user?.name}</span>
                                                               <span className="text-slate-400">·</span>
                                                               <span className="text-slate-500 flex-shrink-0">{hours}h ({userPercentage}%)</span>
@@ -475,7 +478,11 @@ export const Reports: React.FC = () => {
                             onClick={() => toggleExpand(item.user.id)}
                         >
                             <div className="flex items-center gap-4">
-                                <img src={item.user.avatar} className="w-12 h-12 rounded-full border-2 border-white shadow-sm" alt={item.user.name} />
+                                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white shadow-sm">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {item.user.first_name?.[0]?.toUpperCase()}{item.user.last_name?.[0]?.toUpperCase()}
+                                  </span>
+                                </div>
                                 <div>
                                     <h3 className="font-bold text-slate-900">{item.user.name}</h3>
                                     <p className="text-xs text-slate-500">{item.user.email}</p>
@@ -499,7 +506,7 @@ export const Reports: React.FC = () => {
                                      {Object.values(item.projects).map((proj: any, idx) => (
                                          <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between">
                                              <div className="flex items-center gap-2 overflow-hidden">
-                                                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: proj.color }}></div>
+                                                 <div className="w-3 h-3 rounded-full flex-shrink-0 bg-blue-500"></div>
                                                  <span className="text-sm font-medium text-slate-700 truncate">{proj.name}</span>
                                              </div>
                                              <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
@@ -528,8 +535,7 @@ export const Reports: React.FC = () => {
                               {/* Header */}
                               <div className="flex justify-between items-start mb-4">
                                   <div 
-                                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white"
-                                      style={{ backgroundColor: item.project.color }}
+                                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white bg-blue-500"
                                   >
                                       <Briefcase size={24} />
                                   </div>
@@ -552,23 +558,26 @@ export const Reports: React.FC = () => {
                                   <div className="space-y-3">
                                       {Object.values(item.users).map((userData: any) => {
                                           const percentage = Math.round((userData.hours / item.totalHours) * 100);
-                                          return (
-                                              <div key={userData.user.id} className="flex items-center gap-3">
-                                                  <img src={userData.user.avatar} className="w-8 h-8 rounded-full border border-white shadow-sm" alt="" />
-                                                  <div className="flex-1">
-                                                      <div className="flex justify-between text-xs mb-1">
-                                                          <span className="font-medium text-slate-700">{userData.user.name}</span>
-                                                          <span className="text-slate-500">{userData.hours}h ({percentage}%)</span>
+                                          return                                                  <div key={userData.user.id} className="flex items-center gap-3">
+                                                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center border border-white shadow-sm">
+                                                        <span className="text-[10px] font-semibold text-blue-600">
+                                                          {userData.user.first_name?.[0]}{userData.user.last_name?.[0]}
+                                                        </span>
                                                       </div>
-                                                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                          <div 
-                                                              className="h-full rounded-full" 
-                                                              style={{ width: `${percentage}%`, backgroundColor: item.project.color }}
-                                                          ></div>
+                                                      <div className="flex-1">
+                                                          <div className="flex justify-between text-xs mb-1">
+                                                              <span className="font-medium text-slate-700">{userData.user.name}</span>
+                                                              <span className="text-slate-500">{userData.hours}h ({percentage}%)</span>
+                                                          </div>
+                                                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                              <div 
+                                                                  className="h-full rounded-full bg-blue-500" 
+                                                                  style={{ width: `${percentage}%` }}
+                                                              ></div>
+                                                          </div>
                                                       </div>
                                                   </div>
-                                              </div>
-                                          );
+                                          ;
                                       })}
                                   </div>
                               </div>

@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Client, Project, TimesheetEntry, AppState } from '../types';
-import { supabase } from '../lib/supabase';
-import { dbEntryToEntry, entryToDbInsert } from '../lib/utils';
+import { supabase as supabaseClient } from '../lib/supabase';
+import { dbToEntry, formatUserName } from '../lib/utils';
+import { Database } from '../lib/database.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+const supabase = supabaseClient as SupabaseClient<Database>;
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -9,15 +13,15 @@ interface StoreContextType extends AppState {
   signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  addEntry: (entry: Omit<TimesheetEntry, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'project_id'>) => Promise<void>;
+  addEntry: (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => Promise<void>;
   updateEntry: (entry: TimesheetEntry) => Promise<void>;
-  deleteEntry: (id: string) => Promise<void>;
-  addProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteEntry: (id: number) => Promise<void>;
+  addProject: (project: Omit<Project, 'id'>) => Promise<void>;
   updateProject: (project: Project) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
-  addClient: (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteProject: (id: number) => Promise<void>;
+  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   updateClient: (client: Client) => Promise<void>;
-  deleteClient: (id: string) => Promise<void>;
+  deleteClient: (id: number) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -51,25 +55,66 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (authUserId: string) => {
     try {
-      // Fetch user profile
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
+      // Fetch user from auth_user table by matching email
+      // Since Supabase Auth still uses UUID, we need to map via email
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+
+      const email = authData.user.email;
+      
+      // Find matching auth_user by email
+      const { data: authUserData, error: authUserError } = await supabase
+        .from('auth_user')
+        .select(`
+          *,
+          employees_employee (
+            id,
+            hire_date,
+            job_title
+          )
+        `)
+        .eq('email', email)
         .single();
 
-      if (userError) throw userError;
+      if (authUserError) throw authUserError;
+
+      const employee = authUserData.employees_employee?.[0];
       
-      setUser(userData);
+      const userProfile: User = {
+        id: authUserData.id,
+        username: authUserData.username,
+        email: authUserData.email,
+        first_name: authUserData.first_name,
+        last_name: authUserData.last_name,
+        name: formatUserName(authUserData.first_name, authUserData.last_name),
+        is_staff: authUserData.is_staff,
+        is_superuser: authUserData.is_superuser,
+        is_active: authUserData.is_active,
+        employee_id: employee?.id,
+        hire_date: employee?.hire_date,
+        job_title: employee?.job_title,
+        // Leave tracking - default values for now, will be from DB later
+        vacation_days_total: 22,
+        vacation_days_used: 0,
+        vacation_days_remaining: 22,
+        sick_days_total: 180,
+        sick_days_used: 0,
+        sick_days_remaining: 180,
+        permit_hours_total: 32,
+        permit_hours_used: 0,
+        permit_hours_remaining: 32,
+      };
+
+      setUser(userProfile);
       
       // Load all data
       await Promise.all([
         loadUsers(),
         loadClients(),
         loadProjects(),
-        loadEntries()
+        loadEntries(employee?.id)
       ]);
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -78,20 +123,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadUsers = async () => {
     const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('name');
+      .from('auth_user')
+      .select(`
+        *,
+        employees_employee (
+          id,
+          hire_date,
+          job_title
+        )
+      `)
+      .eq('is_active', true)
+      .order('first_name');
 
     if (!error && data) {
-      setUsers(data);
+      const usersData: User[] = data.map(u => {
+        const employee = u.employees_employee?.[0];
+        return {
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          name: formatUserName(u.first_name, u.last_name),
+          is_staff: u.is_staff,
+          is_superuser: u.is_superuser,
+          is_active: u.is_active,
+          employee_id: employee?.id,
+          hire_date: employee?.hire_date,
+          job_title: employee?.job_title,
+          // Leave tracking - default values for now, will be from DB later
+          vacation_days_total: 22,
+          vacation_days_used: 0,
+          vacation_days_remaining: 22,
+          sick_days_total: 180,
+          sick_days_used: 0,
+          sick_days_remaining: 180,
+          permit_hours_total: 32,
+          permit_hours_used: 0,
+          permit_hours_remaining: 32,
+        };
+      });
+      setUsers(usersData);
     }
   };
 
   const loadClients = async () => {
     const { data, error } = await supabase
-      .from('clients')
+      .from('customers_customer')
       .select('*')
-      .eq('status', 'ACTIVE')
       .order('name');
 
     if (!error && data) {
@@ -101,31 +180,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadProjects = async () => {
     const { data, error } = await supabase
-      .from('projects')
+      .from('projects_project')
       .select('*')
-      .eq('status', 'ACTIVE')
       .order('name');
 
     if (!error && data) {
-      // Convert snake_case to camelCase
-      const projectsWithClientId = data.map(p => ({
+      const projectsData: Project[] = data.map(p => ({
         ...p,
-        clientId: p.client_id
+        customerId: p.customer_id
       }));
-      setProjects(projectsWithClientId as Project[]);
+      setProjects(projectsData);
     }
   };
 
-  const loadEntries = async () => {
-    const { data, error } = await supabase
-      .from('timesheet_entries')
-      .select('*')
-      .order('date', { ascending: false });
+  const loadEntries = async (employeeId?: number) => {
+    if (!employeeId) return;
 
-    if (!error && data) {
-      // Convert snake_case to camelCase
-      const convertedEntries = data.map(dbEntryToEntry);
-      setEntries(convertedEntries);
+    // Join timesheets_timesheet with timesheets_timework
+    const { data: timeworks, error } = await supabase
+      .from('timesheets_timework')
+      .select(`
+        *,
+        timesheets_timesheet!inner (
+          day,
+          permits_hours,
+          illness,
+          holiday,
+          employee_id,
+          employees_employee!inner (
+            user_id
+          )
+        )
+      `)
+      .eq('timesheets_timesheet.employee_id', employeeId)
+      .order('timesheets_timesheet(day)', { ascending: false });
+
+    if (!error && timeworks) {
+      const entriesData: TimesheetEntry[] = timeworks.map(tw => {
+        const ts = tw.timesheets_timesheet!;
+        const employee = ts.employees_employee!;
+        
+        return dbToEntry(tw, ts, employee.user_id);
+      });
+      setEntries(entriesData);
     }
   };
 
@@ -168,14 +265,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const signUp = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // First create Supabase auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name
-          }
-        }
       });
 
       if (error) {
@@ -183,27 +276,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: false, error: error.message };
       }
 
-      // If email confirmation is required, user won't be logged in yet
-      // The user profile will be created via database trigger or separate function
-      // For now, we'll create it manually when they confirm and log in
-      if (data.user && data.session) {
-        // User is immediately logged in (email confirmation disabled)
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            name: name,
-            role: 'USER'
-          });
+      if (data.user) {
+        // Split name into first and last
+        const nameParts = name.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
 
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
+        // Create auth_user record
+        const { data: authUser, error: authUserError } = await supabase
+          .from('auth_user')
+          .insert({
+            username: email.split('@')[0],
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            password: 'managed_by_supabase_auth', // Placeholder
+            is_staff: false,
+            is_superuser: false,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (authUserError) {
+          console.error('Error creating auth_user:', authUserError);
           return { success: false, error: 'Failed to create user profile' };
         }
 
-        await loadUserProfile(data.user.id);
+        // Create employee record
+        const { error: employeeError } = await supabase
+          .from('employees_employee')
+          .insert({
+            user_id: authUser.id,
+            hire_date: null,
+            job_title: null,
+          });
+
+        if (employeeError) {
+          console.error('Error creating employee:', employeeError);
+          return { success: false, error: 'Failed to create employee profile' };
+        }
+
+        // If immediately logged in (no email confirmation)
+        if (data.session) {
+          await loadUserProfile(data.user.id);
+        }
       }
 
       return { success: true };
@@ -249,11 +366,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addClient = async (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+  const addClient = async (client: Omit<Client, 'id'>) => {
     try {
       const { data, error } = await supabase
-        .from('clients')
-        .insert(client as any)
+        .from('customers_customer')
+        .insert({ name: client.name })
         .select()
         .single();
 
@@ -271,16 +388,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateClient = async (client: Client) => {
     try {
       const { error } = await supabase
-        .from('clients')
-        .update({
-          name: client.name,
-          email: client.email,
-          phone: client.phone,
-          vat_number: client.vat_number,
-          address: client.address,
-          notes: client.notes,
-          status: client.status
-        } as any)
+        .from('customers_customer')
+        .update({ name: client.name })
         .eq('id', client.id);
 
       if (error) throw error;
@@ -292,10 +401,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteClient = async (id: string) => {
+  const deleteClient = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('clients')
+        .from('customers_customer')
         .delete()
         .eq('id', id);
 
@@ -308,30 +417,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addEntry = async (entry: Omit<TimesheetEntry, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'project_id'>) => {
-    if (!user) return;
+  const addEntry = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
+    if (!user?.employee_id) return;
 
     try {
-      const dbEntry = entryToDbInsert({
-        ...entry,
-        userId: user.id,
-        projectId: entry.projectId || (entry as any).project_id,
-        user_id: user.id,
-        project_id: entry.projectId || (entry as any).project_id,
-      } as any);
+      const date = entry.date || entry.day;
+      
+      // First, ensure timesheet exists for this day
+      const { data: existingTimesheet, error: tsCheckError } = await supabase
+        .from('timesheets_timesheet')
+        .select('id')
+        .eq('employee_id', user.employee_id)
+        .eq('day', date)
+        .single();
 
+      let timesheetId: number;
+
+      if (tsCheckError || !existingTimesheet) {
+        // Create new timesheet for this day
+        const { data: newTimesheet, error: tsError } = await supabase
+          .from('timesheets_timesheet')
+          .insert({
+            employee_id: user.employee_id,
+            day: date,
+            permits_hours: entry.permits_hours || 0,
+            illness: entry.illness || false,
+            holiday: entry.holiday || false,
+          })
+          .select()
+          .single();
+
+        if (tsError) throw tsError;
+        timesheetId = newTimesheet.id;
+      } else {
+        timesheetId = existingTimesheet.id;
+      }
+
+      // Now create the timework entry
       const { data, error } = await supabase
-        .from('timesheet_entries')
-        .insert(dbEntry as any)
+        .from('timesheets_timework')
+        .insert({
+          timesheet_id: timesheetId,
+          project_id: entry.project_id || entry.projectId,
+          hours: entry.hours,
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      if (data) {
-        const newEntry = dbEntryToEntry(data);
-        setEntries(prev => [newEntry, ...prev]);
-      }
+      // Reload entries to get updated list
+      await loadEntries(user.employee_id);
     } catch (error) {
       console.error('Error adding entry:', error);
       throw error;
@@ -340,14 +476,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateEntry = async (entry: TimesheetEntry) => {
     try {
-      const dbEntry = entryToDbInsert(entry);
-
-      const { error } = await supabase
-        .from('timesheet_entries')
-        .update(dbEntry as any)
+      // Update timework
+      const { error: twError } = await supabase
+        .from('timesheets_timework')
+        .update({
+          hours: entry.hours,
+          project_id: entry.project_id,
+        })
         .eq('id', entry.id);
 
-      if (error) throw error;
+      if (twError) throw twError;
+
+      // Update timesheet if needed
+      const { error: tsError } = await supabase
+        .from('timesheets_timesheet')
+        .update({
+          permits_hours: entry.permits_hours || 0,
+          illness: entry.illness || false,
+          holiday: entry.holiday || false,
+        })
+        .eq('id', entry.timesheet_id);
+
+      if (tsError) throw tsError;
 
       setEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
     } catch (error) {
@@ -356,10 +506,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteEntry = async (id: string) => {
+  const deleteEntry = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('timesheet_entries')
+        .from('timesheets_timework')
         .delete()
         .eq('id', id);
 
@@ -372,22 +522,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addProject = async (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+  const addProject = async (project: Omit<Project, 'id'>) => {
     try {
       const { data, error } = await supabase
-        .from('projects')
-        .insert(project as any)
+        .from('projects_project')
+        .insert({
+          name: project.name,
+          customer_id: project.customer_id || project.customerId,
+        })
         .select()
         .single();
 
       if (error) throw error;
 
       if (data) {
-        const projectWithClientId = {
+        const newProject: Project = {
           ...data,
-          clientId: data.client_id
+          customerId: data.customer_id
         };
-        setProjects(prev => [...prev, projectWithClientId as Project]);
+        setProjects(prev => [...prev, newProject]);
       }
     } catch (error) {
       console.error('Error adding project:', error);
@@ -398,13 +551,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateProject = async (project: Project) => {
     try {
       const { error } = await supabase
-        .from('projects')
+        .from('projects_project')
         .update({
           name: project.name,
-          client_id: project.client_id || project.clientId,
-          color: project.color,
-          status: project.status
-        } as any)
+          customer_id: project.customer_id || project.customerId,
+        })
         .eq('id', project.id);
 
       if (error) throw error;
@@ -416,10 +567,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteProject = async (id: string) => {
+  const deleteProject = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('projects')
+        .from('projects_project')
         .delete()
         .eq('id', id);
 

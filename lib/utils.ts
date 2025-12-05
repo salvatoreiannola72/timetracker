@@ -1,22 +1,31 @@
 import { Database } from './database.types';
-import { TimesheetEntry } from '../types';
+import { TimesheetEntry, Timesheet, Timework, EntryType } from '../types';
 
-// Convert Supabase database row to app TimesheetEntry format
-export function dbEntryToEntry(dbEntry: Database['public']['Tables']['timesheet_entries']['Row']): TimesheetEntry {
+// Convert database timework + timesheet to app TimesheetEntry format
+export function dbToEntry(
+    timework: Database['public']['Tables']['timesheets_timework']['Row'],
+    timesheet: Database['public']['Tables']['timesheets_timesheet']['Row'],
+    employee_user_id: number
+): TimesheetEntry {
     return {
-        ...dbEntry,
-        userId: dbEntry.user_id,
-        projectId: dbEntry.project_id,
+        id: timework.id,
+        timesheet_id: timework.timesheet_id,
+        employee_id: timesheet.employee_id,
+        user_id: employee_user_id,
+        userId: employee_user_id,
+        project_id: timework.project_id,
+        projectId: timework.project_id,
+        date: timesheet.day,
+        day: timesheet.day,
+        hours: timework.hours,
+        entry_type: EntryType.WORK, // Default to WORK for existing entries
+        permits_hours: timesheet.permits_hours,
+        illness: timesheet.illness,
+        holiday: timesheet.holiday,
     };
 }
 
-// Convert app TimesheetEntry to Supabase insert format
-export function entryToDbInsert(entry: Omit<TimesheetEntry, 'id' | 'created_at' | 'updated_at'>): Database['public']['Tables']['timesheet_entries']['Insert'] {
-    return {
-        user_id: entry.userId || entry.user_id,
-        project_id: entry.projectId || entry.project_id,
-        date: entry.date,
-        hours: entry.hours,
-        description: entry.description,
-    };
+// Helper to combine auth_user first_name and last_name
+export function formatUserName(first_name: string, last_name: string): string {
+    return `${first_name} ${last_name}`.trim();
 }

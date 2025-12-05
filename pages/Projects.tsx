@@ -21,37 +21,30 @@ export const Projects: React.FC = () => {
   
   const [projectForm, setProjectForm] = useState({
       name: '',
-      client_id: '',
-      color: PROJECT_COLORS[0],
+      customer_id: '',
   });
 
   const [clientForm, setClientForm] = useState({
       name: '',
-      email: '',
-      phone: '',
-      vat_number: '',
-      address: '',
-      notes: '',
-      status: 'ACTIVE' as const,
   });
 
-  if (user?.role !== Role.ADMIN) {
+  if (!user?.is_staff) {
       return <div className="p-8 text-center text-slate-500">Accesso Negato</div>;
   }
 
   // Get client name by ID
-  const getClientName = (clientId: string) => {
+  const getClientName = (clientId: number) => {
       const client = clients.find(c => c.id === clientId);
       return client?.name || 'Cliente sconosciuto';
   };
 
   // Get projects count by client
-  const getClientProjectsCount = (clientId: string) => {
-      return projects.filter(p => p.client_id === clientId).length;
+  const getClientProjectsCount = (clientId: number) => {
+      return projects.filter(p => p.customer_id === clientId).length;
   };
 
   // Get client by ID
-  const getClient = (clientId: string) => {
+  const getClient = (clientId: number) => {
       return clients.find(c => c.id === clientId);
   };
 
@@ -60,52 +53,45 @@ export const Projects: React.FC = () => {
     if (!searchQuery) return projects;
     return projects.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      getClientName(p.client_id).toLowerCase().includes(searchQuery.toLowerCase())
+      getClientName(p.customer_id).toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [projects, searchQuery, clients]);
 
   const filteredClients = useMemo(() => {
     if (!searchQuery) return clients;
     return clients.filter(c =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.phone?.includes(searchQuery)
+      c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [clients, searchQuery]);
 
   // Stats
-  const activeProjects = projects.filter(p => p.status === 'ACTIVE').length;
-  const activeClients = clients.filter(c => c.status === 'ACTIVE').length;
+  const activeProjects = projects.length;
+  const activeClients = clients.length;
 
   // Project handlers
   const handleCreateProject = async (e: React.FormEvent) => {
       e.preventDefault();
-      const selectedClient = clients.find(c => c.id === projectForm.client_id);
       await addProject({
           name: projectForm.name,
-          client: selectedClient?.name || '',
-          client_id: projectForm.client_id,
-          color: projectForm.color,
-          status: 'ACTIVE'
-      } as any);
+          customer_id: projectForm.customer_id,
+          customerId: projectForm.customer_id,
+      });
       setModalType(null);
-      setProjectForm({ name: '', client_id: '', color: PROJECT_COLORS[0] });
+      setProjectForm({ name: '', customer_id: '' });
   };
 
   const handleEditProject = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedProject) return;
-      const selectedClient = clients.find(c => c.id === projectForm.client_id);
       await updateProject({
           ...selectedProject,
           name: projectForm.name,
-          client: selectedClient?.name || '',
-          client_id: projectForm.client_id,
-          color: projectForm.color,
+          customer_id: projectForm.customer_id,
+          customerId: projectForm.customer_id,
       });
       setModalType(null);
       setSelectedProject(null);
-      setProjectForm({ name: '', client_id: '', color: PROJECT_COLORS[0] });
+      setProjectForm({ name: '', customer_id: '' });
   };
 
   const handleDeleteProject = async () => {
@@ -120,7 +106,7 @@ export const Projects: React.FC = () => {
       e.preventDefault();
       await addClient(clientForm);
       setModalType(null);
-      setClientForm({ name: '', email: '', phone: '', vat_number: '', address: '', notes: '', status: 'ACTIVE' });
+      setClientForm({ name: '' });
   };
 
   const handleEditClient = async (e: React.FormEvent) => {
@@ -132,7 +118,7 @@ export const Projects: React.FC = () => {
       });
       setModalType(null);
       setSelectedClient(null);
-      setClientForm({ name: '', email: '', phone: '', vat_number: '', address: '', notes: '', status: 'ACTIVE' });
+      setClientForm({ name: '' });
   };
 
   const handleDeleteClient = async () => {
@@ -147,8 +133,7 @@ export const Projects: React.FC = () => {
       setSelectedProject(project);
       setProjectForm({
           name: project.name,
-          client_id: project.client_id,
-          color: project.color
+          customer_id: project.customer_id,
       });
       setModalType('edit-project');
   };
@@ -162,12 +147,6 @@ export const Projects: React.FC = () => {
       setSelectedClient(client);
       setClientForm({
           name: client.name,
-          email: client.email || '',
-          phone: client.phone || '',
-          vat_number: client.vat_number || '',
-          address: client.address || '',
-          notes: client.notes || '',
-          status: client.status
       });
       setModalType('edit-client');
   };
@@ -278,9 +257,9 @@ export const Projects: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map(project => {
-              const client = getClient(project.client_id);
+              const client = getClient(project.customer_id);
               return (
-                <Card key={project.id} className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 hover:scale-[1.02]" style={{ borderLeftColor: project.color }}>
+                <Card key={project.id} className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 hover:scale-[1.02]">
                   <div className="p-5">
                     {/* Actions - sempre visibili ma opacità ridotta */}
                     <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -362,28 +341,7 @@ export const Projects: React.FC = () => {
                   <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
                     <Briefcase size={14} />
                     {getClientProjectsCount(client.id)} progetti
-                  </p>
-
-                  {/* Contact info */}
-                  <div className="space-y-2 mb-4">
-                    {client.email && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Mail size={14} className="text-slate-400" />
-                        <span className="truncate">{client.email}</span>
-                      </div>
-                    )}
-                    {client.phone && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Phone size={14} className="text-slate-400" />
-                        <span>{client.phone}</span>
-                      </div>
-                    )}
-                    {client.vat_number && (
-                      <div className="text-xs text-slate-500">
-                        P.IVA: {client.vat_number}
-                      </div>
-                    )}
-                  </div>                 
+                  </p>                 
                 </div>
               </Card>
             ))}
@@ -418,8 +376,8 @@ export const Projects: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
                 <select
-                  value={projectForm.client_id}
-                  onChange={(e) => setProjectForm({ ...projectForm, client_id: e.target.value })}
+                  value={projectForm.customer_id}
+                  onChange={(e) => setProjectForm({ ...projectForm, customer_id: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
@@ -429,24 +387,7 @@ export const Projects: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Colore</label>
-                <div className="flex gap-2 flex-wrap">
-                  {PROJECT_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setProjectForm({ ...projectForm, color })}
-                      className={`w-10 h-10 rounded-full border-2 transition-all ${
-                        projectForm.color === color 
-                          ? 'border-slate-900 scale-110 shadow-lg' 
-                          : 'border-slate-200 hover:border-slate-400'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
                   Annulla
@@ -483,56 +424,7 @@ export const Projects: React.FC = () => {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={clientForm.email}
-                  onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="info@acme.it"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Telefono</label>
-                <input
-                  type="tel"
-                  value={clientForm.phone}
-                  onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="+39 02 1234567"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">P.IVA</label>
-                <input
-                  type="text"
-                  value={clientForm.vat_number}
-                  onChange={(e) => setClientForm({ ...clientForm, vat_number: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="IT12345678901"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Indirizzo</label>
-                <input
-                  type="text"
-                  value={clientForm.address}
-                  onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Via Roma 1, Milano"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Note</label>
-                <textarea
-                  value={clientForm.notes}
-                  onChange={(e) => setClientForm({ ...clientForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Note aggiuntive..."
-                  rows={3}
-                />
-              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
                   Annulla

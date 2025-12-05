@@ -2,33 +2,33 @@ import { Project, Role, TimesheetEntry, User } from './types';
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'u1',
-    name: 'Marco Rossi',
+    id: 1,
+    username: 'admin',
     email: 'admin@edgeworks.it',
-    role: Role.ADMIN,
-    avatar: 'https://picsum.photos/200/200?random=1',
+    first_name: 'Marco',
+    last_name: 'Rossi',
+    name: 'Marco Rossi',
+    is_staff: true,
+    is_superuser: true,
+    is_active: true,
   },
   {
-    id: 'u2',
-    name: 'Giulia Bianchi',
+    id: 2,
+    username: 'giulia',
     email: 'user@edgeworks.it',
-    role: Role.COLLABORATOR,
-    avatar: 'https://picsum.photos/200/200?random=2',
-  },
-  {
-    id: 'u3',
-    name: 'Luca Conti',
-    email: 'luca@edgeworks.it',
-    role: Role.COLLABORATOR,
-    avatar: 'https://picsum.photos/200/200?random=3',
+    first_name: 'Giulia',
+    last_name: 'Bianchi',
+    name: 'Giulia Bianchi',
+    is_staff: false,
+    is_superuser: false,
+    is_active: true,
   },
 ];
 
 export const MOCK_PROJECTS: Project[] = [
-  { id: 'p1', name: 'Website Redesign', client: 'Acme Corp', color: '#3b82f6', status: 'ACTIVE' },
-  { id: 'p2', name: 'Mobile App', client: 'Globex', color: '#10b981', status: 'ACTIVE' },
-  { id: 'p3', name: 'Cloud Migration', client: 'Soylent Corp', color: '#f59e0b', status: 'ACTIVE' },
-  { id: 'p4', name: 'Internal Audit', client: 'ChronoFlow', color: '#6366f1', status: 'ACTIVE' },
+  { id: 1, name: 'Website Redesign', customer_id: 1, customerId: 1 },
+  { id: 2, name: 'Mobile App', customer_id: 2, customerId: 2 },
+  { id: 3, name: 'Cloud Migration', customer_id: 1, customerId: 1 },
 ];
 
 // Helper to generate some history
@@ -44,13 +44,18 @@ const generateEntries = (): TimesheetEntry[] => {
 
       // Random entries
       if (date.getDay() !== 0 && date.getDay() !== 6) { // Skip weekends
+        const projId = MOCK_PROJECTS[Math.floor(Math.random() * MOCK_PROJECTS.length)].id;
         entries.push({
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.floor(Math.random() * 1000000),
+          timesheet_id: Math.floor(Math.random() * 1000000),
+          employee_id: user.employee_id || 1,
+          user_id: user.id,
           userId: user.id,
-          projectId: MOCK_PROJECTS[Math.floor(Math.random() * MOCK_PROJECTS.length)].id,
+          project_id: projId,
+          projectId: projId,
           date: dateStr,
+          day: dateStr,
           hours: 4 + Math.floor(Math.random() * 5), // 4-8 hours
-          description: 'Development and maintenance tasks.',
         });
       }
     }

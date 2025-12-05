@@ -3,14 +3,17 @@ import { useStore } from '../context/Store';
 import { Role } from '../types';
 import { Card, CardContent, CardHeader } from '../components/Card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Clock, Briefcase, TrendingUp, Calendar, Users } from 'lucide-react';
+import { Clock, Briefcase, TrendingUp, Calendar, Users, Umbrella, Stethoscope, Clock as PermitIcon } from 'lucide-react';
 import { COLORS } from '../constants';
 
 type ViewType = 'monthly' | 'yearly';
+type DisplayUnit = 'hours' | 'days';
+const HOURS_PER_DAY = 8;
 
 export const Dashboard: React.FC = () => {
   const { user, entries, projects, users } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
+  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('hours');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     return {
@@ -21,7 +24,7 @@ export const Dashboard: React.FC = () => {
 
   // Filter entries based on selected period
   const filteredEntries = useMemo(() => {
-    const relevantEntries = user?.role === Role.ADMIN 
+    const relevantEntries = user?.is_staff 
       ? entries 
       : entries.filter(e => e.userId === user?.id);
 
@@ -37,6 +40,19 @@ export const Dashboard: React.FC = () => {
       }
     });
   }, [entries, user, viewType, selectedDate]);
+
+  // Helper function to convert hours to display unit
+  const convertToDisplayUnit = (hours: number): number => {
+    return displayUnit === 'days' ? hours / HOURS_PER_DAY : hours;
+  };
+
+  const getUnitLabel = (value: number, short: boolean = false): string => {
+    const formatted = value.toFixed(1);
+    if (displayUnit === 'days') {
+      return short ? `${formatted}g` : `${formatted} ${value === 1 ? 'giorno' : 'giorni'}`;
+    }
+    return short ? `${formatted}h` : `${formatted} ${value === 1 ? 'ora' : 'ore'}`;
+  };
 
   // Compute KPIs
   const kpis = useMemo(() => {
@@ -100,7 +116,7 @@ export const Dashboard: React.FC = () => {
     };
   }, [filteredEntries, projects, viewType, selectedDate]);
 
-  const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
+ const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
     <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
       <div className="p-6 flex items-center justify-between">
         <div className="flex-1">
@@ -114,6 +130,53 @@ export const Dashboard: React.FC = () => {
       </div>
     </Card>
   );
+
+  // Leave tracking card with progress bar
+  const LeaveCard = ({ title, used, total, icon: Icon, color, bgColor }: any) => {
+    const remaining = total - used;
+    const percentage = (used / total) * 100;
+    
+    // Color based on usage
+    let barColor = '#10b981'; // green
+    if (percentage > 80) barColor = '#ef4444'; // red
+    else if (percentage > 50) barColor = '#f59e0b'; // yellow
+    
+    return (
+      <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs font-medium text-slate-500 mb-1">{title}</p>
+              <div className="flex items-baseline gap-1.5">
+                <h4 className="text-2xl font-bold text-slate-900">{remaining}</h4>
+                <span className="text-xs text-slate-500">/ {total}</span>
+              </div>
+            </div>
+            <div className="p-3 rounded-lg" style={{ backgroundColor: bgColor }}>
+              <Icon size={22} strokeWidth={2} style={{ color }} />
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="space-y-0.5">
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>Utilizzati: {used}</span>
+              <span>{percentage.toFixed(0)}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full transition-all duration-300 rounded-full"
+                style={{ 
+                  width: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: barColor
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  };
 
   // Generate year and month options
   const currentYear = new Date().getFullYear();
@@ -135,11 +198,12 @@ export const Dashboard: React.FC = () => {
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const value = convertToDisplayUnit(payload[0].value);
       return (
         <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-slate-200">
           <p className="text-sm font-semibold text-slate-900">{payload[0].payload.label}</p>
           <p className="text-sm text-slate-600">
-            <span className="font-medium">{payload[0].value}h</span> logged
+            <span className="font-medium">{getUnitLabel(value, true)}</span> logged
           </p>
         </div>
       );
@@ -149,17 +213,20 @@ export const Dashboard: React.FC = () => {
 
   const CustomLegend = ({ payload }: any) => (
     <div className="flex flex-wrap gap-4 justify-center mt-4">
-      {payload.map((entry: any, index: number) => (
-        <div key={`legend-${index}`} className="flex items-center gap-2">
-          <div 
-            className="w-3 h-3 rounded-full" 
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-sm text-slate-700 font-medium">
-            {entry.value} ({entry.payload.value}h)
-          </span>
-        </div>
-      ))}
+      {payload.map((entry: any, index: number) => {
+        const displayValue = convertToDisplayUnit(entry.payload.value);
+        return (
+          <div key={`legend-${index}`} className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-full" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm text-slate-700 font-medium">
+              {entry.value} ({getUnitLabel(displayValue, true)})
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -168,10 +235,34 @@ export const Dashboard: React.FC = () => {
       {/* Header with Period Selector */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h1 className="text-3xl font-bold text-slate-900">
-          {user?.role === Role.ADMIN ? 'Admin Dashboard' : 'Dashboard Personale'}
+          {user?.is_staff ? 'Admin Dashboard' : 'Dashboard Personale'}
         </h1>
         
         <div className="flex flex-wrap items-center gap-3">
+          {/* Display Unit Toggle */}
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+            <button
+              onClick={() => setDisplayUnit('hours')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                displayUnit === 'hours'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Ore
+            </button>
+            <button
+              onClick={() => setDisplayUnit('days')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                displayUnit === 'days'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Giorni
+            </button>
+          </div>
+
           {/* View Type Toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
             <button
@@ -236,8 +327,8 @@ export const Dashboard: React.FC = () => {
       {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Ore Totali" 
-          value={`${kpis.totalHours.toFixed(1)}h`}
+          title={displayUnit === 'hours' ? 'Ore Totali' : 'Giorni Totali'}
+          value={getUnitLabel(convertToDisplayUnit(kpis.totalHours), true)}
           subtitle={`${filteredEntries.length} registrazioni`}
           icon={Clock} 
           color="#3b82f6" 
@@ -251,12 +342,12 @@ export const Dashboard: React.FC = () => {
         />
         <StatCard 
           title="Media Giornaliera" 
-          value={`${kpis.avgDailyHours.toFixed(1)}h`}
+          value={getUnitLabel(convertToDisplayUnit(kpis.avgDailyHours), true)}
           subtitle={viewType === 'monthly' ? 'per giorno' : 'per giorno'}
           icon={TrendingUp} 
           color="#f59e0b" 
         />
-        {user?.role === Role.ADMIN && (
+        {user?.is_staff && (
           <StatCard 
             title="Collaboratori Attivi" 
             value={kpis.activeUsersCount}
@@ -266,6 +357,39 @@ export const Dashboard: React.FC = () => {
           />
         )}
       </div>
+
+      {/* Leave Tracking Section - Only for regular users */}
+      {!user?.is_staff && (
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Gestione Assenze</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <LeaveCard
+              title="Ferie Rimanenti"
+              used={user?.vacation_days_used || 0}
+              total={user?.vacation_days_total || 22}
+              icon={Umbrella}
+              color="#10b981"
+              bgColor="#d1fae5"
+            />
+            <LeaveCard
+              title="Malattia Rimanenti"
+              used={user?.sick_days_used || 0}
+              total={user?.sick_days_total || 180}
+              icon={Stethoscope}
+              color="#ef4444"
+              bgColor="#fee2e2"
+            />
+            <LeaveCard
+              title="Permessi Rimanenti (ore)"
+              used={user?.permit_hours_used || 0}
+              total={user?.permit_hours_total || 32}
+              icon={PermitIcon}
+              color="#f59e0b"
+              bgColor="#fef3c7"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Project Distribution Chart */}
@@ -283,7 +407,6 @@ export const Dashboard: React.FC = () => {
                     outerRadius={110}
                     paddingAngle={3}
                     dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   >
                     {kpis.chartData.map((entry, index) => (
                       <Cell 
@@ -301,7 +424,13 @@ export const Dashboard: React.FC = () => {
                       boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                       padding: '12px'
                     }}
-                    formatter={(value: number) => [`${value}h`, 'Ore']}
+                    formatter={(value: number, name: string, props: any) => {
+                      const displayValue = convertToDisplayUnit(value);
+                      return [
+                        getUnitLabel(displayValue, true),
+                        `${props.payload.name} (${((value / kpis.totalHours) * 100).toFixed(1)}%)`
+                      ];
+                    }}
                   />
                   <Legend content={<CustomLegend />} />
                 </PieChart>
@@ -323,7 +452,13 @@ export const Dashboard: React.FC = () => {
           <CardContent className="h-[440px]">
             {kpis.trendData.some(d => d.hours > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={kpis.trendData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                <BarChart 
+                  data={kpis.trendData.map(d => ({ 
+                    ...d, 
+                    displayValue: convertToDisplayUnit(d.hours) 
+                  }))} 
+                  margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+                >
                   <XAxis 
                     dataKey="label" 
                     fontSize={12} 
@@ -337,7 +472,7 @@ export const Dashboard: React.FC = () => {
                     axisLine={{ stroke: '#e2e8f0' }}
                     tick={{ fill: '#64748b' }}
                     label={{ 
-                      value: 'Ore', 
+                      value: displayUnit === 'hours' ? 'Ore' : 'Giorni', 
                       angle: -90, 
                       position: 'insideLeft',
                       style: { fill: '#64748b', fontSize: 12 }
@@ -345,7 +480,7 @@ export const Dashboard: React.FC = () => {
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar 
-                    dataKey="hours" 
+                    dataKey="displayValue" 
                     fill="#3b82f6" 
                     radius={[6, 6, 0, 0]} 
                     barSize={viewType === 'monthly' ? 20 : 32}

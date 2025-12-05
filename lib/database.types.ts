@@ -1,4 +1,4 @@
-// Database types generated from Supabase schema
+// Database types for Django-compatible schema
 export type Json =
     | string
     | number
@@ -10,137 +10,153 @@ export type Json =
 export interface Database {
     public: {
         Tables: {
-            clients: {
+            auth_user: {
                 Row: {
-                    id: string
-                    name: string
-                    email: string | null
-                    phone: string | null
-                    vat_number: string | null
-                    address: string | null
-                    notes: string | null
-                    status: 'ACTIVE' | 'INACTIVE'
-                    created_at: string
-                    updated_at: string
+                    id: number
+                    password: string
+                    last_login: string | null
+                    is_superuser: boolean
+                    username: string
+                    first_name: string
+                    last_name: string
+                    email: string
+                    is_staff: boolean
+                    is_active: boolean
+                    date_joined: string
                 }
                 Insert: {
-                    id?: string
-                    name: string
-                    email?: string | null
-                    phone?: string | null
-                    vat_number?: string | null
-                    address?: string | null
-                    notes?: string | null
-                    status?: 'ACTIVE' | 'INACTIVE'
-                    created_at?: string
-                    updated_at?: string
-                }
-                Update: {
-                    id?: string
-                    name?: string
-                    email?: string | null
-                    phone?: string | null
-                    vat_number?: string | null
-                    address?: string | null
-                    notes?: string | null
-                    status?: 'ACTIVE' | 'INACTIVE'
-                    created_at?: string
-                    updated_at?: string
-                }
-            }
-            users: {
-                Row: {
-                    id: string
-                    email: string
-                    name: string
-                    role: 'ADMIN' | 'COLLABORATOR'
-                    avatar: string | null
-                    created_at: string
-                    updated_at: string
-                }
-                Insert: {
-                    id?: string
-                    email: string
-                    name: string
-                    role: 'ADMIN' | 'COLLABORATOR'
-                    avatar?: string | null
-                    created_at?: string
-                    updated_at?: string
-                }
-                Update: {
-                    id?: string
+                    id?: number
+                    password: string
+                    last_login?: string | null
+                    is_superuser?: boolean
+                    username: string
+                    first_name?: string
+                    last_name?: string
                     email?: string
-                    name?: string
-                    role?: 'ADMIN' | 'COLLABORATOR'
-                    avatar?: string | null
-                    created_at?: string
-                    updated_at?: string
-                }
-            }
-            projects: {
-                Row: {
-                    id: string
-                    name: string
-                    client: string
-                    client_id: string
-                    color: string
-                    status: 'ACTIVE' | 'ARCHIVED'
-                    created_at: string
-                    updated_at: string
-                }
-                Insert: {
-                    id?: string
-                    name: string
-                    client?: string
-                    client_id: string
-                    color: string
-                    status?: 'ACTIVE' | 'ARCHIVED'
-                    created_at?: string
-                    updated_at?: string
+                    is_staff?: boolean
+                    is_active?: boolean
+                    date_joined?: string
                 }
                 Update: {
-                    id?: string
-                    name?: string
-                    client?: string
-                    client_id?: string
-                    color?: string
-                    status?: 'ACTIVE' | 'ARCHIVED'
-                    created_at?: string
-                    updated_at?: string
+                    id?: number
+                    password?: string
+                    last_login?: string | null
+                    is_superuser?: boolean
+                    username?: string
+                    first_name?: string
+                    last_name?: string
+                    email?: string
+                    is_staff?: boolean
+                    is_active?: boolean
+                    date_joined?: string
                 }
             }
-            timesheet_entries: {
+            employees_employee: {
                 Row: {
-                    id: string
-                    user_id: string
-                    project_id: string
-                    date: string
-                    hours: number
-                    description: string
-                    created_at: string
-                    updated_at: string
+                    id: number
+                    hire_date: string | null
+                    job_title: string | null
+                    user_id: number
                 }
                 Insert: {
-                    id?: string
-                    user_id: string
-                    project_id: string
-                    date: string
-                    hours: number
-                    description: string
-                    created_at?: string
-                    updated_at?: string
+                    id?: number
+                    hire_date?: string | null
+                    job_title?: string | null
+                    user_id: number
                 }
                 Update: {
-                    id?: string
-                    user_id?: string
-                    project_id?: string
-                    date?: string
+                    id?: number
+                    hire_date?: string | null
+                    job_title?: string | null
+                    user_id?: number
+                }
+            }
+            customers_customer: {
+                Row: {
+                    id: number
+                    name: string
+                }
+                Insert: {
+                    id?: number
+                    name: string
+                }
+                Update: {
+                    id?: number
+                    name?: string
+                }
+            }
+            projects_project: {
+                Row: {
+                    id: number
+                    name: string
+                    customer_id: number
+                }
+                Insert: {
+                    id?: number
+                    name: string
+                    customer_id: number
+                }
+                Update: {
+                    id?: number
+                    name?: string
+                    customer_id?: number
+                }
+            }
+            timesheets_timesheet: {
+                Row: {
+                    id: number
+                    day: string
+                    permits_hours: number
+                    illness: boolean
+                    holiday: boolean
+                    employee_id: number
+                }
+                Insert: {
+                    id?: number
+                    day: string
+                    permits_hours?: number
+                    illness?: boolean
+                    holiday?: boolean
+                    employee_id: number
+                }
+                Update: {
+                    id?: number
+                    day?: string
+                    permits_hours?: number
+                    illness?: boolean
+                    holiday?: boolean
+                    employee_id?: number
+                }
+            }
+            timesheets_timework: {
+                Row: {
+                    id: number
+                    hours: number
+                    project_id: number | null
+                    timesheet_id: number
+                }
+                Insert: {
+                    id?: number
+                    hours: number
+                    project_id?: number | null
+                    timesheet_id: number
+                }
+                Update: {
+                    id?: number
                     hours?: number
-                    description?: string
-                    created_at?: string
-                    updated_at?: string
+                    project_id?: number | null
+                    timesheet_id?: number
                 }
             }
+        }
+        Views: {
+            [_ in never]: never
+        }
+        Functions: {
+            [_ in never]: never
+        }
+        Enums: {
+            [_ in never]: never
         }
     }
 }
