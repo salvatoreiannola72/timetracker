@@ -59,7 +59,47 @@ A modern timesheet management application built with React, TypeScript, and Supa
    
    Navigate to `http://localhost:5173` in your browser
 
+## Deploy to Heroku
+
+This application is configured to run on Heroku with dynamic port binding.
+
+1. **Install Heroku CLI**
+   
+   Download and install from [https://devcenter.heroku.com/articles/heroku-cli](https://devcenter.heroku.com/articles/heroku-cli)
+
+2. **Login to Heroku**
+   ```bash
+   heroku login
+   ```
+
+3. **Create a new Heroku app**
+   ```bash
+   heroku create your-app-name
+   ```
+
+4. **Set environment variables**
+   ```bash
+   heroku config:set VITE_SUPABASE_URL=your_supabase_url
+   heroku config:set VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+5. **Deploy to Heroku**
+   ```bash
+   git push heroku main
+   ```
+
+6. **Open your app**
+   ```bash
+   heroku open
+   ```
+
+The application uses:
+- **Express server** (`server.js`) to serve the built React app
+- **Dynamic PORT** from Heroku's environment variable
+- **Procfile** to specify the start command
+
 ## Build for Production
+
 
 ```bash
 bun run build
