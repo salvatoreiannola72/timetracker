@@ -26,6 +26,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
   if (!user) return <>{children}</>;
 
+  // Desktop NavLink - unchanged
   const NavLink = ({ page, icon: Icon, label }: { page: string; icon: any; label: string }) => (
     <button
       onClick={() => {
@@ -39,13 +40,35 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         }`}
     >
       <Icon size={18} />
-      <span className="hidden sm:inline">{label}</span>
+      <span>{label}</span>
     </button>
   );
 
+  // Mobile Bottom Nav Item
+  const MobileNavItem = ({ page, icon: Icon, label }: { page: string; icon: any; label: string }) => {
+    const isActive = currentPage === page;
+    return (
+      <button
+        onClick={() => onNavigate(page)}
+        className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 flex-1
+          ${isActive 
+            ? 'text-blue-600' 
+            : 'text-slate-500'
+          }`}
+      >
+        <div className={`p-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-blue-50' : ''}`}>
+          <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+        </div>
+        <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-slate-600'}`}>
+          {label}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Modern Navbar */}
+      {/* Desktop & Mobile Top Navbar */}
       <nav className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -56,7 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               <img src="/edgeworks.png" alt="Edgeworks" className="h-8 w-auto" />
-              <span>Edgeworks</span>
+              <span className="font-semibold text-slate-800">Edgeworks</span>
             </button>
 
             {/* Desktop Navigation */}
@@ -71,10 +94,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               )}
             </div>
 
-            {/* User Menu */}
+            {/* User Menu (Desktop & Mobile) */}
             <div className="flex items-center gap-4">
-              {/* Desktop User Menu */}
-              <div className="hidden md:block relative">
+              <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-slate-50 transition-colors"
@@ -82,12 +104,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                   <img 
                     src={user.avatar} 
                     className="w-8 h-8 rounded-full border-2 border-slate-200"
+                    alt={user.name}
                   />
                   <div className="text-left hidden lg:block">
                     <p className="text-sm font-medium text-slate-900">{user.name}</p>
                     <p className="text-xs text-slate-500 capitalize">{user.role.toLowerCase()}</p>
                   </div>
-                  <ChevronDown size={16} className="text-slate-400" />
+                  <ChevronDown size={16} className="text-slate-400 hidden md:block" />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -113,59 +136,31 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                   </>
                 )}
               </div>
-
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
             </div>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white">
-            <div className="px-4 py-4 space-y-2">
-              <NavLink page="dashboard" icon={LayoutDashboard} label="Dashboard" />
-              <NavLink page="timesheet" icon={Calendar} label="Timesheet" />
-              {user.role === Role.ADMIN && (
-                <>
-                  <NavLink page="projects" icon={Briefcase} label="Progetti" />
-                  <NavLink page="reports" icon={PieChart} label="Report" />
-                </>
-              )}
-              
-              {/* Mobile User Info */}
-              <div className="pt-4 mt-4 border-t border-slate-200">
-                <div className="flex items-center gap-3 px-4 py-2 mb-2">
-                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{user.name}</p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={logout}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <LogOut size={18} />
-                  <span>Esci</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* Main Content */}
-      <main className="pt-16">
+      <main className="pt-16 pb-20 md:pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50">
+        <div className="flex items-center justify-around px-2 py-1 safe-bottom">
+          <MobileNavItem page="dashboard" icon={LayoutDashboard} label="Home" />
+          <MobileNavItem page="timesheet" icon={Calendar} label="Timesheet" />
+          {user.role === Role.ADMIN && (
+            <>
+              <MobileNavItem page="projects" icon={Briefcase} label="Progetti" />
+              <MobileNavItem page="reports" icon={PieChart} label="Report" />
+            </>
+          )}
+        </div>
+      </nav>
     </div>
   );
 };

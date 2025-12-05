@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
-import { Download, FileSpreadsheet, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { Download, FileSpreadsheet, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar, Briefcase } from 'lucide-react';
 import { User, Project } from '../types';
 import * as XLSX from 'xlsx';
 
-type ViewMode = 'CLIENTS' | 'TEAM' | 'RAW';
+type ViewMode = 'CLIENTS' | 'PROJECTS' | 'TEAM';
 type PeriodType = 'monthly' | 'yearly';
 
 export const Reports: React.FC = () => {
@@ -40,13 +40,16 @@ export const Reports: React.FC = () => {
 
   // --- Aggregation Logic ---
 
-  // 1. Group by Client (Company) -> Users
+  // 1. Group by Client (Company) -> Projects -> Users
   const clientReport = useMemo(() => {
     const data: Record<string, { 
       clientName: string; 
       totalHours: number; 
-      projectsCount: number;
-      users: Record<string, number> 
+      projects: Record<string, {
+        project: Project;
+        hours: number;
+        users: Record<string, number>;
+      }>;
     }> = {};
 
     filteredEntries.forEach(entry => {
@@ -55,17 +58,21 @@ export const Reports: React.FC = () => {
       const clientName = project.client;
 
       if (!data[clientName]) {
-        data[clientName] = { clientName, totalHours: 0, projectsCount: 0, users: {} };
+        data[clientName] = { clientName, totalHours: 0, projects: {} };
+      }
+      
+      if (!data[clientName].projects[entry.projectId]) {
+        data[clientName].projects[entry.projectId] = {
+          project,
+          hours: 0,
+          users: {}
+        };
       }
       
       data[clientName].totalHours += entry.hours;
-      data[clientName].users[entry.userId] = (data[clientName].users[entry.userId] || 0) + entry.hours;
-    });
-
-    // Count unique projects per client
-    Object.keys(data).forEach(client => {
-       const clientProjects = projects.filter(p => p.client === client);
-       data[client].projectsCount = clientProjects.length;
+      data[clientName].projects[entry.projectId].hours += entry.hours;
+      data[clientName].projects[entry.projectId].users[entry.userId] = 
+        (data[clientName].projects[entry.projectId].users[entry.userId] || 0) + entry.hours;
     });
 
     return Object.values(data).sort((a, b) => b.totalHours - a.totalHours);
@@ -104,6 +111,44 @@ export const Reports: React.FC = () => {
       .sort((a, b) => b.totalHours - a.totalHours);
   }, [filteredEntries, users, projects]);
 
+  // 3. Group by Project -> Users and Client
+  const projectReport = useMemo(() => {
+    const data: Record<string, {
+      project: Project;
+      totalHours: number;
+      clientName: string;
+      users: Record<string, { user: User; hours: number }>;
+    }> = {};
+
+    filteredEntries.forEach(entry => {
+      const project = projects.find(p => p.id === entry.projectId);
+      if (!project) return;
+      
+      if (!data[entry.projectId]) {
+        data[entry.projectId] = {
+          project,
+          totalHours: 0,
+          clientName: project.client,
+          users: {}
+        };
+      }
+      
+      data[entry.projectId].totalHours += entry.hours;
+      
+      if (!data[entry.projectId].users[entry.userId]) {
+        const user = users.find(u => u.id === entry.userId);
+        if (user) {
+          data[entry.projectId].users[entry.userId] = { user, hours: 0 };
+        }
+      }
+      if (data[entry.projectId].users[entry.userId]) {
+        data[entry.projectId].users[entry.userId].hours += entry.hours;
+      }
+    });
+
+    return Object.values(data).sort((a, b) => b.totalHours - a.totalHours);
+  }, [filteredEntries, projects, users]);
+
   // --- Filtering Logic ---
   
   const filteredClients = clientReport.filter(c => 
@@ -128,7 +173,14 @@ export const Reports: React.FC = () => {
       filename = `report_clienti_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
       csvContent = 'Cliente,Ore Totali,Progetti Attivi\n';
       filteredClients.forEach(client => {
-        csvContent += `"${client.clientName}",${client.totalHours},${client.projectsCount}\n`;
+        csvContent += `"${client.clientName}",${client.totalHours},${Object.keys(client.projects).length}\n`;
+      });
+    } else if (viewMode === 'PROJECTS') {
+      // CSV for Projects view
+      filename = `report_progetti_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
+      csvContent = 'Progetto,Cliente,Ore Totali\n';
+      projectReport.forEach(item => {
+        csvContent += `"${item.project.name}","${item.clientName}",${item.totalHours}\n`;
       });
     } else if (viewMode === 'TEAM') {
       // CSV for Team view
@@ -137,10 +189,12 @@ export const Reports: React.FC = () => {
       filteredTeam.forEach(item => {
         csvContent += `"${item.user.name}","${item.user.email}",${item.totalHours}\n`;
       });
-    } else if (viewMode === 'RAW') {
-      // CSV for Raw/Details view
-      filename = `report_dettagli_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.csv`;
-      csvContent = 'Data,Utente,Cliente,Progetto,Ore\n';
+    }
+
+    // Also export detailed RAW data
+    if (csvContent) {
+      csvContent += '\n\nDETTAGLI\n';
+      csvContent += 'Data,Utente,Cliente,Progetto,Ore\n';
       filteredEntries.forEach(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
@@ -166,7 +220,16 @@ export const Reports: React.FC = () => {
       const data = filteredClients.map(client => ({
         'Cliente': client.clientName,
         'Ore Totali': client.totalHours,
-        'Progetti Attivi': client.projectsCount
+        'Progetti Attivi': Object.keys(client.projects).length
+      }));
+      worksheet = XLSX.utils.json_to_sheet(data);
+    } else if (viewMode === 'PROJECTS') {
+      // Excel for Projects view
+      filename = `report_progetti_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.xlsx`;
+      const data = projectReport.map(item => ({
+        'Progetto': item.project.name,
+        'Cliente': item.clientName,
+        'Ore Totali': item.totalHours
       }));
       worksheet = XLSX.utils.json_to_sheet(data);
     } else if (viewMode === 'TEAM') {
@@ -178,10 +241,15 @@ export const Reports: React.FC = () => {
         'Ore Totali': item.totalHours
       }));
       worksheet = XLSX.utils.json_to_sheet(data);
-    } else if (viewMode === 'RAW') {
-      // Excel for Raw/Details view
-      filename = `report_dettagli_${periodType === 'monthly' ? months[selectedDate.month - 1].label : 'anno'}_${selectedDate.year}.xlsx`;
-      const data = filteredEntries.map(entry => {
+    }
+
+    // Create workbook with main sheet
+    const workbook = XLSX.utils.book_new();
+    if (worksheet) {
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+      
+      // Always add detailed sheet
+      const detailData = filteredEntries.map(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
         return {
@@ -192,13 +260,11 @@ export const Reports: React.FC = () => {
           'Ore': entry.hours
         };
       });
-      worksheet = XLSX.utils.json_to_sheet(data);
+      const detailSheet = XLSX.utils.json_to_sheet(detailData);
+      XLSX.utils.book_append_sheet(workbook, detailSheet, 'Dettagli');
+      
+      XLSX.writeFile(workbook, filename!);
     }
-
-    // Create workbook and download
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet!, 'Report');
-    XLSX.writeFile(workbook, filename);
   };
 
   // Generate year and month options
@@ -227,10 +293,7 @@ export const Reports: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900">Report e Analisi</h1>
             <p className="text-slate-500 text-sm">Monitora le prestazioni per cliente o team</p>
         </div>
-        <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon={<Download size={16}/>} onClick={handleExportCSV}>Esporta CSV</Button>
-            <Button variant="primary" size="sm" icon={<FileSpreadsheet size={16}/>} onClick={handleExportExcel}>Esporta Excel</Button>
-        </div>
+        
       </div>
 
       {/* Period Selector */}
@@ -290,15 +353,13 @@ export const Reports: React.FC = () => {
               ))}
             </select>
           </div>
-
-          <div className="text-sm text-slate-500 md:ml-auto">
-            {periodType === 'monthly' 
-              ? `${months[selectedDate.month - 1].label} ${selectedDate.year}`
-              : `Anno ${selectedDate.year}`
-            }
+          <div className="flex flex-col gap-2 md:flex-row md:justify-end md:ml-auto mt-4 md:mt-0">
+            <Button variant="outline" size="sm" icon={<Download size={16}/>} onClick={handleExportCSV} className="w-full md:w-auto">Esporta CSV</Button>
+            <Button variant="primary" size="sm" icon={<FileSpreadsheet size={16}/>} onClick={handleExportExcel} className="w-full md:w-auto">Esporta Excel</Button>
           </div>
         </div>
       </div>
+      
 
       {/* Navigation Tabs & Search */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm sticky top-0 z-10">
@@ -310,16 +371,16 @@ export const Reports: React.FC = () => {
                   <Building2 size={16} /> Clienti
               </button>
               <button 
+                onClick={() => setViewMode('PROJECTS')}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'PROJECTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                  <Briefcase size={16} /> Progetti
+              </button>
+              <button 
                 onClick={() => setViewMode('TEAM')}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'TEAM' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                   <Users size={16} /> Team
-              </button>
-              <button 
-                onClick={() => setViewMode('RAW')}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'RAW' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                  <FileText size={16} /> Dettagli
               </button>
           </div>
 
@@ -347,31 +408,49 @@ export const Reports: React.FC = () => {
                               </div>
                               <div className="text-right">
                                   <span className="block text-2xl font-bold text-slate-900">{client.totalHours}h</span>
-                                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Totale Registrato</span>
+                                  <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Totale</span>
                               </div>
                           </div>
                           
                           <h3 className="text-lg font-bold text-slate-800 mb-1">{client.clientName}</h3>
-                          <p className="text-sm text-slate-500 mb-4">{client.projectsCount} Progetti Attivi</p>
+                          <p className="text-sm text-slate-500 mb-4">{Object.keys(client.projects).length} Progetti</p>
 
+                          {/* Lista progetti con percentuali e collaboratori */}
                           <div className="border-t border-slate-100 pt-4">
-                              <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Impegno per Collaboratore</p>
-                              <div className="space-y-3">
-                                  {Object.entries(client.users).map(([userId, hours]) => {
-                                      const user = users.find(u => u.id === userId);
-                                      const h = hours as number;
-                                      const percentage = Math.round((h / client.totalHours) * 100);
+                              <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Progetti & Collaboratori</p>
+                              <div className="space-y-4">
+                                  {Object.values(client.projects).map((projData: any) => {
+                                      const percentage = Math.round((projData.hours / client.totalHours) * 100);
                                       return (
-                                          <div key={userId} className="flex items-center gap-3">
-                                              <img src={user?.avatar} alt="" className="w-8 h-8 rounded-full bg-slate-200 border border-white shadow-sm" />
-                                              <div className="flex-1">
-                                                  <div className="flex justify-between text-xs mb-1">
-                                                      <span className="font-medium text-slate-700">{user?.name}</span>
-                                                      <span className="text-slate-500">{h}h ({percentage}%)</span>
+                                          <div key={projData.project.id} className="space-y-2">
+                                              {/* Progetto */}
+                                              <div>
+                                                  <div className="flex items-center justify-between text-xs mb-1">
+                                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: projData.project.color }}></div>
+                                                          <span className="font-medium text-slate-700 truncate">{projData.project.name}</span>
+                                                      </div>
+                                                      <span className="text-slate-500 ml-2 flex-shrink-0">{projData.hours}h ({percentage}%)</span>
                                                   </div>
                                                   <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${percentage}%` }}></div>
+                                                      <div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: projData.project.color }}></div>
                                                   </div>
+                                              </div>
+                                              
+                                              {/* Collaboratori per questo progetto */}
+                                              <div className="pl-4 space-y-1.5">
+                                                  {Object.entries(projData.users).map(([userId, hours]) => {
+                                                      const user = users.find(u => u.id === userId);
+                                                      const userPercentage = Math.round((hours as number / projData.hours) * 100);
+                                                      return (
+                                                          <div key={userId} className="flex items-center gap-2 text-xs text-slate-600">
+                                                              <img src={user?.avatar} className="w-5 h-5 rounded-full border border-white shadow-sm" alt="" />
+                                                              <span className="flex-1 min-w-0 truncate">{user?.name}</span>
+                                                              <span className="text-slate-400">·</span>
+                                                              <span className="text-slate-500 flex-shrink-0">{hours}h ({userPercentage}%)</span>
+                                                          </div>
+                                                      );
+                                                  })}
                                               </div>
                                           </div>
                                       );
@@ -437,53 +516,66 @@ export const Reports: React.FC = () => {
           </div>
       )}
 
-      {/* CONTENT: RAW TABLE */}
-      {viewMode === 'RAW' && (
-          <Card>
-          <CardContent className="p-0">
-             <div className="overflow-x-auto">
-                 <table className="w-full text-left text-sm text-slate-600">
-                     <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
-                         <tr>
-                             <th className="px-6 py-4">Data</th>
-                             <th className="px-6 py-4">Utente</th>
-                             <th className="px-6 py-4">Cliente</th>
-                             <th className="px-6 py-4">Progetto</th>
-                             <th className="px-6 py-4 text-right">Ore</th>
-                         </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100">
-                         {filteredEntries
-                            .filter(e => 
-                                e.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                projects.find(p => p.id === e.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-                            )
-                            .slice(0, 50).map(entry => {
-                             const user = users.find(u => u.id === entry.userId);
-                             const project = projects.find(p => p.id === entry.projectId);
-                             return (
-                                 <tr key={entry.id} className="hover:bg-slate-50/50">
-                                     <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{entry.date}</td>
-                                     <td className="px-6 py-4 flex items-center gap-2 whitespace-nowrap">
-                                         {user && <img src={user.avatar} className="w-6 h-6 rounded-full" alt="" />}
-                                         {user?.name || 'Unknown'}
-                                     </td>
-                                     <td className="px-6 py-4 whitespace-nowrap text-slate-500">
-                                         {project?.client}
-                                     </td>
-                                     <td className="px-6 py-4 whitespace-nowrap">
-                                         <span className="inline-block w-2 h-2 rounded-full mr-2" style={{backgroundColor: project?.color}}></span>
-                                         {project?.name}
-                                     </td>
-                                     <td className="px-6 py-4 text-right font-bold text-slate-900">{entry.hours}</td>
-                                 </tr>
-                             );
-                         })}
-                     </tbody>
-                 </table>
-             </div>
-          </CardContent>
-      </Card>
+      {/* CONTENT: PROJECTS VIEW */}
+      {viewMode === 'PROJECTS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projectReport
+                  .filter(p => p.project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                               p.clientName.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((item) => (
+                      <Card key={item.project.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                          <div className="p-5">
+                              {/* Header */}
+                              <div className="flex justify-between items-start mb-4">
+                                  <div 
+                                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white"
+                                      style={{ backgroundColor: item.project.color }}
+                                  >
+                                      <Briefcase size={24} />
+                                  </div>
+                                  <div className="text-right">
+                                      <span className="block text-2xl font-bold text-slate-900">{item.totalHours}h</span>
+                                      <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">Totale</span>
+                                  </div>
+                              </div>
+                              
+                              {/* Nome progetto e cliente */}
+                              <h3 className="text-lg font-bold text-slate-800 mb-1">{item.project.name}</h3>
+                              <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
+                                  <Building2 size={14} />
+                                  {item.clientName}
+                              </p>
+
+                              {/* Collaboratori */}
+                              <div className="border-t border-slate-100 pt-4">
+                                  <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Collaboratori</p>
+                                  <div className="space-y-3">
+                                      {Object.values(item.users).map((userData: any) => {
+                                          const percentage = Math.round((userData.hours / item.totalHours) * 100);
+                                          return (
+                                              <div key={userData.user.id} className="flex items-center gap-3">
+                                                  <img src={userData.user.avatar} className="w-8 h-8 rounded-full border border-white shadow-sm" alt="" />
+                                                  <div className="flex-1">
+                                                      <div className="flex justify-between text-xs mb-1">
+                                                          <span className="font-medium text-slate-700">{userData.user.name}</span>
+                                                          <span className="text-slate-500">{userData.hours}h ({percentage}%)</span>
+                                                      </div>
+                                                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                          <div 
+                                                              className="h-full rounded-full" 
+                                                              style={{ width: `${percentage}%`, backgroundColor: item.project.color }}
+                                                          ></div>
+                                                      </div>
+                                                  </div>
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                              </div>
+                          </div>
+                      </Card>
+                  ))}
+          </div>
       )}
     </div>
   );
