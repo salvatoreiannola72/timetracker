@@ -13,7 +13,7 @@ import { testSupabaseConnection } from './test-supabase';
 import { supabase } from './lib/supabase';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, loading } = useStore();
+  const { user, isAuthenticated, loading } = useStore();
   const [page, setPage] = useState('dashboard');
   const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
 
@@ -77,6 +77,12 @@ const AppContent: React.FC = () => {
   }
 
   const renderPage = () => {
+    // Route guards: prevent collaborators from accessing admin-only pages
+    if (user?.role === 'COLLABORATOR' && (page === 'projects' || page === 'reports')) {
+      setPage('dashboard');
+      return <Dashboard />;
+    }
+
     switch (page) {
       case 'dashboard': return <Dashboard />;
       case 'timesheet': return <Timesheet />;

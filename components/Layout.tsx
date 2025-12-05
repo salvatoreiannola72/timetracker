@@ -64,9 +64,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               <NavLink page="dashboard" icon={LayoutDashboard} label="Dashboard" />
               <NavLink page="timesheet" icon={Calendar} label="Timesheet" />
               {user.role === Role.ADMIN && (
-                <NavLink page="projects" icon={Briefcase} label="Progetti" />
+                <>
+                  <NavLink page="projects" icon={Briefcase} label="Progetti" />
+                  <NavLink page="reports" icon={PieChart} label="Report" />
+                </>
               )}
-              <NavLink page="reports" icon={PieChart} label="Report" />
             </div>
 
             {/* User Menu */}
@@ -130,9 +132,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               <NavLink page="dashboard" icon={LayoutDashboard} label="Dashboard" />
               <NavLink page="timesheet" icon={Calendar} label="Timesheet" />
               {user.role === Role.ADMIN && (
-                <NavLink page="projects" icon={Briefcase} label="Progetti" />
+                <>
+                  <NavLink page="projects" icon={Briefcase} label="Progetti" />
+                  <NavLink page="reports" icon={PieChart} label="Report" />
+                </>
               )}
-              <NavLink page="reports" icon={PieChart} label="Report" />
               
               {/* Mobile User Info */}
               <div className="pt-4 mt-4 border-t border-slate-200">
