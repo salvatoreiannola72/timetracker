@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as Calendar
 import { EntryType } from '../types';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
 type ViewType = 'week' | 'month' | 'year';
@@ -221,19 +222,19 @@ export const Timesheet: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Timesheet</h1>
-          <p className="text-slate-500 text-sm">Gestisci le tue ore settimanali</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Timesheet</h1>
+          <p className="text-slate-500 text-xs sm:text-sm">Gestisci le tue ore settimanali</p>
         </div>
         
-        {/* View Selector */}
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+        {/* View Selector - Mobile optimized */}
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 sm:p-1 w-full sm:w-auto">
           <button
             onClick={() => setViewType('week')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
               viewType === 'week'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -243,7 +244,7 @@ export const Timesheet: React.FC = () => {
           </button>
           <button
             onClick={() => setViewType('month')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
               viewType === 'month'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -253,7 +254,7 @@ export const Timesheet: React.FC = () => {
           </button>
           <button
             onClick={() => setViewType('year')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
               viewType === 'year'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -264,110 +265,197 @@ export const Timesheet: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-        <button onClick={handlePrev} className="p-2 hover:bg-slate-100 rounded-md text-slate-600">
-          <ChevronLeft size={20} />
+      {/* Navigation - Mobile optimized */}
+      <div className="flex items-center justify-between bg-white p-2 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
+        <button onClick={handlePrev} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
+          <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
         </button>
-        <div className="px-4 font-bold text-slate-700 min-w-[180px] text-center">
+        <div className="px-2 sm:px-4 font-bold text-slate-700 text-sm sm:text-base text-center flex-1">
           {getDateLabel()}
         </div>
-        <button onClick={handleNext} className="p-2 hover:bg-slate-100 rounded-md text-slate-600">
-          <ChevronRight size={20} />
+        <button onClick={handleNext} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
+          <ChevronRight size={18} className="sm:w-5 sm:h-5" />
         </button>
       </div>
 
-      {/* WEEK VIEW */}
+      {/* WEEK VIEW - Mobile vertical layout */}
       {viewType === 'week' && (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          {weekDates.map((date, index) => {
-            const dateStr = date.toISOString().split('T')[0];
-            const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-            const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-            const isToday = dateStr === new Date().toISOString().split('T')[0];
+        <>
+          {/* Mobile: Vertical stacked view */}
+          <div className="md:hidden space-y-3">
+            {weekDates.map((date, index) => {
+              const dateStr = date.toISOString().split('T')[0];
+              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+              const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-            return (
-              <div key={dateStr} className={`flex flex-col gap-3 min-h-[300px] md:min-h-[500px] rounded-xl p-3 border transition-colors
-                  ${isToday ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'}`}>
-                
-                {/* Day Header */}
-                <div className="text-center pb-2 border-b border-slate-100/50">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
-                  <div className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
-                      ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
-                     {date.getDate()}
-                  </div>
-                  <div className="mt-1 h-5">
-                      {totalHours > 0 && (
-                          <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
-                      )}
-                  </div>
-                </div>
-
-                {/* Entries List */}
-                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
-                  {dayEntries.map(entry => {
-                    const project = projects.find(p => p.id === entry.projectId);
-                    const isLeaveEntry = entry.entry_type !== EntryType.WORK;
-                    const entryConfig = {
-                      [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                      [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                      [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                      [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                    };
-                    const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                    const Icon = config.icon;
-                    
-                    return (
-                      <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                         <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                         <div className="pl-2">
-                             <div className="flex items-center gap-2">
-                               <Icon size={12} style={{ color: config.color }} />
-                               <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
-                             </div>
-                             {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                             <div className="mt-2 flex justify-between items-center">
-                                 <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
-                                 <button 
-                                  onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
-                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-                                     <X size={12} />
-                                 </button>
-                             </div>
-                         </div>
+              return (
+                <div key={dateStr} className={`flex flex-col gap-2 rounded-xl p-3 border transition-colors
+                    ${isToday ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200' : 'bg-white border-slate-200'}`}>
+                  
+                  {/* Day Header - Horizontal layout for mobile */}
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100/50">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center justify-center w-11 h-11 rounded-full text-base font-bold
+                          ${isToday ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
+                         {date.getDate()}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">{WEEK_DAYS[index]}</p>
+                        <p className="text-xs text-slate-500">{date.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}</p>
+                      </div>
+                    </div>
+                    {totalHours > 0 && (
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-slate-700">{totalHours}h</span>
+                        <p className="text-xs text-slate-500">totale</p>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Add Button */}
-                <button 
-                  onClick={() => openAddModal(dateStr)}
-                  className="mt-auto w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-1 text-sm font-medium"
-                >
-                  <Plus size={16} /> Aggiungi
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                  {/* Entries List */}
+                  {dayEntries.length > 0 ? (
+                    <div className="space-y-2">
+                      {dayEntries.map(entry => {
+                        const project = projects.find(p => p.id === entry.projectId);
+                        const entryConfig = {
+                          [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                          [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                          [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                          [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                        };
+                        const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                        const Icon = config.icon;
+                        
+                        return (
+                          <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm active:shadow-md transition-shadow touch-manipulation">
+                             <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
+                             <div className="pl-2">
+                                 <div className="flex items-center gap-2">
+                                   <Icon size={14} style={{ color: config.color }} />
+                                   <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                                 </div>
+                                 {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
+                                 <div className="mt-2 flex justify-between items-center">
+                                     <span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
+                                     <button 
+                                      onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
+                                      className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
+                                         <X size={16} />
+                                     </button>
+                                 </div>
+                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-center text-sm text-slate-400 py-4">Nessuna registrazione</p>
+                  )}
+
+                  {/* Add Button */}
+                  <button 
+                    onClick={() => openAddModal(dateStr)}
+                    className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation"
+                  >
+                    <Plus size={18} /> Aggiungi
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: Grid view */}
+          <div className="hidden md:grid md:grid-cols-7 gap-4">
+            {weekDates.map((date, index) => {
+              const dateStr = date.toISOString().split('T')[0];
+              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+              const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+              return (
+                <div key={dateStr} className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
+                    ${isToday ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'}`}>
+                  
+                  {/* Day Header */}
+                  <div className="text-center pb-2 border-b border-slate-100/50">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
+                    <div className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
+                        ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
+                       {date.getDate()}
+                    </div>
+                    <div className="mt-1 h-5">
+                        {totalHours > 0 && (
+                            <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                        )}
+                    </div>
+                  </div>
+
+                  {/* Entries List */}
+                  <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                    {dayEntries.map(entry => {
+                      const project = projects.find(p => p.id === entry.projectId);
+                      const entryConfig = {
+                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                      };
+                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                      const Icon = config.icon;
+                      
+                      return (
+                        <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                           <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
+                           <div className="pl-2">
+                               <div className="flex items-center gap-2">
+                                 <Icon size={12} style={{ color: config.color }} />
+                                 <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                               </div>
+                               {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
+                               <div className="mt-2 flex justify-between items-center">
+                                   <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
+                                   <button 
+                                    onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
+                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+                                       <X size={12} />
+                                   </button>
+                               </div>
+                           </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add Button */}
+                  <button 
+                    onClick={() => openAddModal(dateStr)}
+                    className="mt-auto w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-1 text-sm font-medium"
+                  >
+                    <Plus size={16} /> Aggiungi
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      {/* MONTH VIEW */}
+      {/* MONTH VIEW - Mobile optimized */}
       {viewType === 'month' && (
         <div>
           {/* Week day headers */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {WEEK_DAYS.map(day => (
-              <div key={day} className="text-center text-xs font-semibold text-slate-500 uppercase py-2">
-                {day}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+            {WEEK_DAYS.map((day, idx) => (
+              <div key={day} className="text-center text-xs font-semibold text-slate-500 uppercase py-1 sm:py-2">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{WEEK_DAYS_SHORT[idx]}</span>
               </div>
             ))}
           </div>
           
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-2">
+          {/* Calendar grid - Mobile optimized */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {monthDates.map((date, index) => {
               const dateStr = date.toISOString().split('T')[0];
               const dayEntries = filteredEntries.filter(e => e.date === dateStr);
@@ -379,38 +467,39 @@ export const Timesheet: React.FC = () => {
                 <div
                   key={index}
                   onClick={() => isCurrentMonth && openAddModal(dateStr)}
-                  className={`min-h-[100px] p-2 rounded-lg border transition-all cursor-pointer
-                    ${isToday ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' : 'border-slate-200'}
-                    ${isCurrentMonth ? 'bg-white hover:shadow-md' : 'bg-slate-50 opacity-40'}
+                  className={`min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg border transition-all cursor-pointer touch-manipulation
+                    ${isToday ? 'bg-blue-50 border-blue-300 ring-1 sm:ring-2 ring-blue-200' : 'border-slate-200'}
+                    ${isCurrentMonth ? 'bg-white active:shadow-md sm:hover:shadow-md' : 'bg-slate-50 opacity-40'}
                   `}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className={`text-sm font-bold ${isToday ? 'text-blue-600' : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
+                  <div className="flex justify-between items-start mb-0.5 sm:mb-1">
+                    <span className={`text-xs sm:text-sm font-bold ${isToday ? 'text-blue-600' : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
                       {date.getDate()}
                     </span>
                     {totalHours > 0 && (
-                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
                         {totalHours}h
                       </span>
                     )}
                   </div>
                   
-                  <div className="space-y-1">
-                    {dayEntries.slice(0, 3).map(entry => {
+                  <div className="space-y-0.5 sm:space-y-1">
+                    {dayEntries.slice(0, 2).map(entry => {
                       const project = projects.find(p => p.id === entry.projectId);
                       return (
                         <div
                           key={entry.id}
-                          className="text-xs p-1 rounded truncate"
+                          className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
                           style={{ backgroundColor: `${project?.color}20`, borderLeft: `2px solid ${project?.color}` }}
                         >
-                          <span className="font-medium">{entry.hours}h</span> {project?.name}
+                          <span className="font-medium">{entry.hours}h</span>
+                          <span className="hidden sm:inline"> {project?.name}</span>
                         </div>
                       );
                     })}
-                    {dayEntries.length > 3 && (
-                      <div className="text-xs text-slate-400 font-medium">
-                        +{dayEntries.length - 3} altre
+                    {dayEntries.length > 2 && (
+                      <div className="text-[10px] sm:text-xs text-slate-400 font-medium">
+                        +{dayEntries.length - 2}
                       </div>
                     )}
                   </div>
@@ -421,9 +510,9 @@ export const Timesheet: React.FC = () => {
         </div>
       )}
 
-      {/* YEAR VIEW */}
+      {/* YEAR VIEW - Mobile optimized */}
       {viewType === 'year' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {yearMonths.map((monthData) => {
             const monthEntries = filteredEntries.filter(e => {
               const entryDate = new Date(e.date);
@@ -439,19 +528,19 @@ export const Timesheet: React.FC = () => {
                   setCurrentDate(new Date(monthData.year, monthData.month, 1));
                   setViewType('month');
                 }}
-                className={`p-4 rounded-xl border transition-all cursor-pointer hover:shadow-lg
+                className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer active:shadow-lg sm:hover:shadow-lg touch-manipulation
                   ${isCurrentMonth ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' : 'bg-white border-slate-200'}
                 `}
               >
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className={`font-bold ${isCurrentMonth ? 'text-blue-600' : 'text-slate-700'}`}>
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
+                  <h3 className={`text-base sm:text-lg font-bold ${isCurrentMonth ? 'text-blue-600' : 'text-slate-700'}`}>
                     {monthData.name}
                   </h3>
-                  <CalendarIcon size={18} className="text-slate-400" />
+                  <CalendarIcon size={16} className="sm:w-[18px] sm:h-[18px] text-slate-400" />
                 </div>
 
-                <div className="mb-3">
-                  <div className="text-2xl font-bold text-slate-900">{totalHours}h</div>
+                <div className="mb-2 sm:mb-3">
+                  <div className="text-xl sm:text-2xl font-bold text-slate-900">{totalHours}h</div>
                   <div className="text-xs text-slate-500">{monthEntries.length} registrazioni</div>
                 </div>
 
@@ -485,139 +574,140 @@ export const Timesheet: React.FC = () => {
         </div>
       )}
 
-      {/* Add Modal */}
+
+      {/* Add Modal - Mobile optimized */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
                 <div>
-                    <h3 className="font-semibold text-slate-900">Registra Ore</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900">Registra Ore</h3>
                     <p className="text-xs text-slate-500">Per il {selectedDateForAdd}</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 touch-manipulation p-1"><X size={20}/></button>
             </div>
             
-            <form onSubmit={handleSaveEntry} className="p-6 space-y-4">
-                {/* Entry Type Selection */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">Tipo di Registrazione</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setFormData({...formData, entryType: EntryType.WORK, hours: 4})}
-                            className={`p-3 rounded-lg border-2 transition-all text-left ${
-                                formData.entryType === EntryType.WORK
-                                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                                    : 'border-slate-200 hover:border-blue-300'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Briefcase size={18} className={formData.entryType === EntryType.WORK ? 'text-blue-600' : 'text-slate-400'} />
-                                <span className={`font-medium text-sm ${formData.entryType === EntryType.WORK ? 'text-blue-900' : 'text-slate-600'}`}>Lavoro</span>
+            <form onSubmit={handleSaveEntry} className="flex flex-col flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    {/* Entry Type Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2 sm:mb-3">Tipo di Registrazione</label>
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({...formData, entryType: EntryType.WORK, hours: 4})}
+                                className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${
+                                    formData.entryType === EntryType.WORK
+                                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                        : 'border-slate-200 hover:border-blue-300'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <Briefcase size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.WORK ? 'text-blue-600' : 'text-slate-400'}`} />
+                                    <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.WORK ? 'text-blue-900' : 'text-slate-600'}`}>Lavoro</span>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: ''})}
+                                className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${
+                                    formData.entryType === EntryType.VACATION
+                                        ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
+                                        : 'border-slate-200 hover:border-green-300'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <Umbrella size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.VACATION ? 'text-green-600' : 'text-slate-400'}`} />
+                                    <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.VACATION ? 'text-green-900' : 'text-slate-600'}`}>Ferie</span>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: ''})}
+                                className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${
+                                    formData.entryType === EntryType.SICK_LEAVE
+                                        ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
+                                        : 'border-slate-200 hover:border-red-300'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <Stethoscope size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-600' : 'text-slate-400'}`} />
+                                    <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-900' : 'text-slate-600'}`}>Malattia</span>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: ''})}
+                                className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${
+                                    formData.entryType === EntryType.PERMIT
+                                        ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                                        : 'border-slate-200 hover:border-orange-300'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <Clock size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.PERMIT ? 'text-orange-600' : 'text-slate-400'}`} />
+                                    <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.PERMIT ? 'text-orange-900' : 'text-slate-600'}`}>Permesso</span>
+                                </div>
+                            </button>
+                        </div>
+                        
+                        {/* Days/Hours Remaining Info */}
+                        {formData.entryType === EntryType.VACATION && (
+                            <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
+                                📅 Giorni ferie rimanenti: <strong>{user?.vacation_days_remaining || 0}</strong>
                             </div>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: ''})}
-                            className={`p-3 rounded-lg border-2 transition-all text-left ${
-                                formData.entryType === EntryType.VACATION
-                                    ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
-                                    : 'border-slate-200 hover:border-green-300'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Umbrella size={18} className={formData.entryType === EntryType.VACATION ? 'text-green-600' : 'text-slate-400'} />
-                                <span className={`font-medium text-sm ${formData.entryType === EntryType.VACATION ? 'text-green-900' : 'text-slate-600'}`}>Ferie</span>
+                        )}
+                        {formData.entryType === EntryType.SICK_LEAVE && (
+                            <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                                🏥 Giorni malattia rimanenti: <strong>{user?.sick_days_remaining || 0}</strong>
                             </div>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: ''})}
-                            className={`p-3 rounded-lg border-2 transition-all text-left ${
-                                formData.entryType === EntryType.SICK_LEAVE
-                                    ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
-                                    : 'border-slate-200 hover:border-red-300'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Stethoscope size={18} className={formData.entryType === EntryType.SICK_LEAVE ? 'text-red-600' : 'text-slate-400'} />
-                                <span className={`font-medium text-sm ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-900' : 'text-slate-600'}`}>Malattia</span>
+                        )}
+                        {formData.entryType === EntryType.PERMIT && (
+                            <div className="mt-2 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                                ⏰ Ore permesso rimanenti: <strong>{user?.permit_hours_remaining || 0}h</strong>
                             </div>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: ''})}
-                            className={`p-3 rounded-lg border-2 transition-all text-left ${
-                                formData.entryType === EntryType.PERMIT
-                                    ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
-                                    : 'border-slate-200 hover:border-orange-300'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Clock size={18} className={formData.entryType === EntryType.PERMIT ? 'text-orange-600' : 'text-slate-400'} />
-                                <span className={`font-medium text-sm ${formData.entryType === EntryType.PERMIT ? 'text-orange-900' : 'text-slate-600'}`}>Permesso</span>
-                            </div>
-                        </button>
+                        )}
                     </div>
-                    
-                    {/* Days/Hours Remaining Info */}
-                    {formData.entryType === EntryType.VACATION && (
-                        <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
-                            📅 Giorni ferie rimanenti: <strong>{user?.vacation_days_remaining || 0}</strong>
-                        </div>
-                    )}
-                    {formData.entryType === EntryType.SICK_LEAVE && (
-                        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-                            🏥 Giorni malattia rimanenti: <strong>{user?.sick_days_remaining || 0}</strong>
-                        </div>
-                    )}
-                    {formData.entryType === EntryType.PERMIT && (
-                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                            ⏰ Ore permesso rimanenti: <strong>{user?.permit_hours_remaining || 0}h</strong>
-                        </div>
-                    )}
-                </div>
 
-                {/* Client and Project - Only for WORK type */}
-                {formData.entryType === EntryType.WORK && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
-                            <select 
-                                required
-                                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={formData.clientId}
-                                onChange={e => setFormData({...formData, clientId: e.target.value, projectId: ''})}
-                            >
-                                <option value="">Seleziona cliente...</option>
-                                {clients.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                    {/* Client and Project - Only for WORK type */}
+                    {formData.entryType === EntryType.WORK && (
+                        <>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                                <select 
+                                    required
+                                    className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
+                                    value={formData.clientId}
+                                    onChange={e => setFormData({...formData, clientId: e.target.value, projectId: ''})}
+                                >
+                                    <option value="">Seleziona cliente...</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
-                            <select 
-                                required
-                                disabled={!formData.clientId}
-                                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                value={formData.projectId}
-                                onChange={e => setFormData({...formData, projectId: e.target.value})}
-                            >
-                                <option value="">
-                                    {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
-                                </option>
-                                {filteredProjects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </>
-                )}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
+                                <select 
+                                    required
+                                    disabled={!formData.clientId}
+                                    className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed text-sm touch-manipulation"
+                                    value={formData.projectId}
+                                    onChange={e => setFormData({...formData, projectId: e.target.value})}
+                                >
+                                    <option value="">
+                                        {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
+                                    </option>
+                                    {filteredProjects.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
 
-                {/* Hours Input */}
-                <div className="grid grid-cols-2 gap-4">
+                    {/* Hours Input */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">
                             {formData.entryType === EntryType.PERMIT ? 'Ore Permesso' : 'Durata (Ore)'}
@@ -629,7 +719,7 @@ export const Timesheet: React.FC = () => {
                             max="24"
                             required
                             disabled={formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE}
-                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed text-sm touch-manipulation"
                             value={formData.hours}
                             onChange={e => setFormData({...formData, hours: Number(e.target.value)})}
                         />
@@ -637,58 +727,58 @@ export const Timesheet: React.FC = () => {
                             <p className="text-xs text-slate-500 mt-1">Fisso a 8h (1 giorno)</p>
                         )}
                     </div>
-                </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Descrizione</label>
-                    <textarea 
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
-                        placeholder={formData.entryType === EntryType.WORK ? "Su cosa hai lavorato?" : "Note (opzionale)"}
-                        value={formData.description}
-                        onChange={e => setFormData({...formData, description: e.target.value})}
-                    />
-                </div>
-
-                {/* Recurrence Section */}
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-3">
-                    <div className="flex items-center gap-2 mb-1">
-                        <CalendarClock size={16} className="text-slate-500" />
-                        <span className="text-sm font-semibold text-slate-700">Ricorrenza</span>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Descrizione</label>
+                        <textarea 
+                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none text-sm touch-manipulation"
+                            placeholder={formData.entryType === EntryType.WORK ? "Su cosa hai lavorato?" : "Note (opzionale)"}
+                            value={formData.description}
+                            onChange={e => setFormData({...formData, description: e.target.value})}
+                        />
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Frequenza</label>
-                            <select 
-                                className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={formData.recurrence}
-                                onChange={e => setFormData({...formData, recurrence: e.target.value as any})}
-                            >
-                                <option value="NONE">Non si ripete</option>
-                                <option value="DAILY">Giornaliero (Lun-Ven)</option>
-                                <option value="WEEKLY">Settimanale</option>
-                            </select>
+
+                    {/* Recurrence Section */}
+                    <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-100 space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                            <CalendarClock size={16} className="text-slate-500" />
+                            <span className="text-sm font-semibold text-slate-700">Ricorrenza</span>
                         </div>
                         
-                        {formData.recurrence !== 'NONE' && (
-                             <div className="animate-in fade-in slide-in-from-left-2">
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Fino a</label>
-                                <input 
-                                    type="date"
-                                    required
-                                    className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={formData.recurrenceEnd}
-                                    min={selectedDateForAdd}
-                                    onChange={e => setFormData({...formData, recurrenceEnd: e.target.value})}
-                                />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Frequenza</label>
+                                <select 
+                                    className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
+                                    value={formData.recurrence}
+                                    onChange={e => setFormData({...formData, recurrence: e.target.value as any})}
+                                >
+                                    <option value="NONE">Non si ripete</option>
+                                    <option value="DAILY">Giornaliero (Lun-Ven)</option>
+                                    <option value="WEEKLY">Settimanale</option>
+                                </select>
                             </div>
-                        )}
+                            
+                            {formData.recurrence !== 'NONE' && (
+                                 <div className="animate-in fade-in slide-in-from-left-2">
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Fino a</label>
+                                    <input 
+                                        type="date"
+                                        required
+                                        className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
+                                        value={formData.recurrenceEnd}
+                                        min={selectedDateForAdd}
+                                        onChange={e => setFormData({...formData, recurrenceEnd: e.target.value})}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="pt-2 flex gap-3">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>Annulla</Button>
-                    <Button type="submit" className="flex-1">Salva Registrazione</Button>
+                <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 flex gap-2 sm:gap-3 bg-slate-50 flex-shrink-0">
+                    <Button type="button" variant="outline" className="flex-1 touch-manipulation" onClick={() => setIsModalOpen(false)}>Annulla</Button>
+                    <Button type="submit" className="flex-1 touch-manipulation">Salva Registrazione</Button>
                 </div>
             </form>
           </div>

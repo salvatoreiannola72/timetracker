@@ -52,6 +52,30 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
+
+    /* Hide scrollbar for mobile horizontal scroll */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Improve touch targets on mobile */
+    .touch-manipulation {
+      touch-action: manipulation;
+    }
+
+    /* Custom scrollbar for timesheet entries */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 2px;
+    }
   </style>
 </head>
 
