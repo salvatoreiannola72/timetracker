@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Client, Project, TimesheetEntry, AppState } from '../types';
-import { supabase as supabaseClient } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
-import { Database } from '../lib/database.types';
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-const supabase = supabaseClient as SupabaseClient<Database>;
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -63,6 +59,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (authError) throw authError;
 
       const email = authData.user.email;
+      if (!email) throw new Error('User has no email');
       
       // Find matching auth_user by email
       const { data: authUserData, error: authUserError } = await supabase
@@ -78,7 +75,59 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .eq('email', email)
         .single();
 
-      if (authUserError) throw authUserError;
+      // Handle missing user record (PGRST116) by creating it
+      if (authUserError) {
+        if (authUserError.code === 'PGRST116') {
+          console.log('User missing in auth_user, creating profile...');
+          // Create missing profile
+          const username = email.split('@')[0];
+          
+          const { data: newUser, error: createError } = await supabase
+            .from('auth_user')
+            .insert({
+              username: username,
+              email: email,
+              first_name: username,
+              last_name: '',
+              password: 'managed_by_supabase_auth',
+              is_staff: false,
+              is_superuser: false,
+              is_active: true,
+              date_joined: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (createError) {
+             console.error('Failed to auto-create user:', createError);
+             throw createError;
+          }
+
+          if (newUser) {
+            // Create employee record
+            // @ts-ignore - newUser inferred type issues
+            const userId = (newUser as any).id;
+            
+            const { error: employeeError } = await supabase
+                .from('employees_employee')
+                .insert({
+                user_id: userId,
+                hire_date: null,
+                job_title: null,
+                });
+
+            if (employeeError) {
+                console.error('Failed to auto-create employee:', employeeError);
+                throw employeeError;
+            }
+          }
+
+          // Retry loading profile
+          return loadUserProfile(authUserId);
+        }
+        
+        throw authUserError;
+      }
 
       const employee = authUserData.employees_employee?.[0];
       

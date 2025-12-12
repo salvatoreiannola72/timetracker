@@ -278,44 +278,38 @@ export const Timesheet: React.FC = () => {
         </button>
       </div>
 
-      {/* WEEK VIEW - Mobile vertical layout */}
+      {/* WEEK VIEW - Mobile vertical scroll */}
       {viewType === 'week' && (
         <>
-          {/* Mobile: Vertical stacked view */}
-          <div className="md:hidden space-y-3">
-            {weekDates.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+          {/* Mobile: vertical scrolling view */}
+          <div className="md:hidden">
+            <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
+              {weekDates.map((date, index) => {
+                const dateStr = date.toISOString().split('T')[0];
+                const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+                const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+                const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-              return (
-                <div key={dateStr} className={`flex flex-col gap-2 rounded-xl p-3 border transition-colors
-                    ${isToday ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200' : 'bg-white border-slate-200'}`}>
-                  
-                  {/* Day Header - Horizontal layout for mobile */}
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100/50">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex items-center justify-center w-11 h-11 rounded-full text-base font-bold
-                          ${isToday ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
+                return (
+                  <div key={dateStr} className={`flex flex-col gap-2 min-w-[280px] w-[280px] min-h-[400px] rounded-xl p-3 border transition-colors snap-center flex-shrink-0
+                      ${isToday ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200' : 'bg-white border-slate-200'}`}>
+                    
+                    {/* Day Header */}
+                    <div className="text-center pb-2 border-b border-slate-100/50">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
+                      <div className={`mt-1 inline-flex items-center justify-center w-9 h-9 rounded-full text-base font-bold
+                          ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
                          {date.getDate()}
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-700">{WEEK_DAYS[index]}</p>
-                        <p className="text-xs text-slate-500">{date.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })}</p>
+                      <div className="mt-1 h-5">
+                          {totalHours > 0 && (
+                              <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                          )}
                       </div>
                     </div>
-                    {totalHours > 0 && (
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-slate-700">{totalHours}h</span>
-                        <p className="text-xs text-slate-500">totale</p>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Entries List */}
-                  {dayEntries.length > 0 ? (
-                    <div className="space-y-2">
+                    {/* Entries List */}
+                    <div className="flex-1 space-y-2 overflow-y-auto">
                       {dayEntries.map(entry => {
                         const project = projects.find(p => p.id === entry.projectId);
                         const entryConfig = {
@@ -349,20 +343,20 @@ export const Timesheet: React.FC = () => {
                         );
                       })}
                     </div>
-                  ) : (
-                    <p className="text-center text-sm text-slate-400 py-4">Nessuna registrazione</p>
-                  )}
 
-                  {/* Add Button */}
-                  <button 
-                    onClick={() => openAddModal(dateStr)}
-                    className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation"
-                  >
-                    <Plus size={18} /> Aggiungi
-                  </button>
-                </div>
-              );
-            })}
+                    {/* Add Button */}
+                    <button 
+                      onClick={() => openAddModal(dateStr)}
+                      className="mt-auto w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation"
+                    >
+                      <Plus size={18} /> Aggiungi
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Scroll indicator */}
+            <p className="text-center text-xs text-slate-400 mt-2">← Scorri per vedere tutti i giorni →</p>
           </div>
 
           {/* Desktop: Grid view */}

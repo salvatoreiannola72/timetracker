@@ -11,6 +11,15 @@ export const MOCK_USERS: User[] = [
     is_staff: true,
     is_superuser: true,
     is_active: true,
+    employee_id: 101,
+    role: Role.Admin,
+    vacation_days_total: 20,
+    vacation_days_used: 0,
+    vacation_days_remaining: 20,
+    sick_days_total: 10,
+    sick_days_used: 0,
+    sick_days_remaining: 10,
+    hire_date: '2020-01-01',
   },
   {
     id: 2,
@@ -22,6 +31,15 @@ export const MOCK_USERS: User[] = [
     is_staff: false,
     is_superuser: false,
     is_active: true,
+    employee_id: 102,
+    role: Role.User,
+    vacation_days_total: 20,
+    vacation_days_used: 0,
+    vacation_days_remaining: 20,
+    sick_days_total: 10,
+    sick_days_used: 0,
+    sick_days_remaining: 10,
+    hire_date: '2020-01-01',
   },
 ];
 
@@ -56,6 +74,7 @@ const generateEntries = (): TimesheetEntry[] => {
           date: dateStr,
           day: dateStr,
           hours: 4 + Math.floor(Math.random() * 5), // 4-8 hours
+          entry_type: 'Work', // Added to satisfy TimesheetEntry type
         });
       }
     }
