@@ -58,24 +58,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadUserProfile = async (userId: number) => {
     try {
       // Fetch user from auth_user table by user ID
-      const authUserData = await AuthService.getEmployeeFromCurrentUser();
+      const currentUser = AuthService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No current user found');
+      }
+      const employeeData = await AuthService.getEmployeeFromCurrentUser();
 
-      if (!authUserData) {
-        throw new Error('User not found');
+      if (!employeeData) {
+        throw new Error('Employee not found');
       }
 
-      const employee = authUserData.employees_employee?.[0];
+      const employee = employeeData.employees_employee?.[0];
 
       const userProfile: User = {
-        id: authUserData.id,
-        username: authUserData.username,
-        email: authUserData.email,
-        first_name: authUserData.first_name,
-        last_name: authUserData.last_name,
-        name: formatUserName(authUserData.first_name, authUserData.last_name),
-        is_staff: authUserData.is_staff,
-        is_superuser: authUserData.is_superuser,
-        is_active: authUserData.is_active,
+        id: employeeData.id,
+        username: employeeData.username,
+        email: employeeData.email,
+        first_name: employeeData.first_name,
+        last_name: employeeData.last_name,
+        name: formatUserName(employeeData.first_name, employeeData.last_name),
+        is_staff: currentUser.is_staff,
+        is_superuser: employeeData.is_superuser,
+        is_active: employeeData.is_active,
         employee_id: employee?.id,
         hire_date: employee?.hire_date,
         job_title: employee?.job_title,

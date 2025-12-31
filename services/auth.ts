@@ -8,6 +8,8 @@ interface JWTPayload {
     email: string;
     exp: number;
     iat: number;
+    is_staff: boolean;
+    is_superuser: boolean;
 }
 
 interface LoginResponse {
@@ -143,6 +145,7 @@ export class AuthService {
     static async getEmployeeFromCurrentUser(): Promise<any> {
         const token = this.getAccessToken();
         const user = this.getCurrentUser();
+        console.log('Fetching employee for user:', user);
 
         if (!token || !user) return null;
 
