@@ -9,7 +9,7 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
   const { login } = useStore();
-  const [email, setEmail] = useState('admin@edgeworks.it');
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,9 +20,9 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
+      const success = await login(username, password);
       if (!success) {
-        setError('Email o password non corrette');
+        setError('Username o password non corrette');
       }
     } catch (err) {
       setError('Errore durante il login. Riprova.');
@@ -45,17 +45,17 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Indirizzo Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User size={18} className="text-slate-400" />
                 </div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="tu@azienda.com"
+                  placeholder="nome.cognome"
                   required
                   disabled={loading}
                 />

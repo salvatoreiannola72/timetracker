@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Client, Project, TimesheetEntry, AppState } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
+import { AuthService } from '@/services/auth';
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -39,98 +40,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const checkSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
+      // Check if we have a valid JWT token
+      if (AuthService.isLoginActive()) {
+        const jwtUser = AuthService.getCurrentUser();
+        if (jwtUser) {
+          await loadUserProfile(jwtUser.user_id);
+        }
       }
     } catch (error) {
       console.error('Error checking session:', error);
+      AuthService.logout();
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUserProfile = async (authUserId: string) => {
+  const loadUserProfile = async (userId: number) => {
     try {
-      // Fetch user from auth_user table by matching email
-      // Since Supabase Auth still uses UUID, we need to map via email
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
+      // Fetch user from auth_user table by user ID
+      const authUserData = await AuthService.getEmployeeFromCurrentUser();
 
-      const email = authData.user.email;
-      if (!email) throw new Error('User has no email');
-      
-      // Find matching auth_user by email
-      const { data: authUserData, error: authUserError } = await supabase
-        .from('auth_user')
-        .select(`
-          *,
-          employees_employee (
-            id,
-            hire_date,
-            job_title
-          )
-        `)
-        .eq('email', email)
-        .single();
-
-      // Handle missing user record (PGRST116) by creating it
-      if (authUserError) {
-        if (authUserError.code === 'PGRST116') {
-          console.log('User missing in auth_user, creating profile...');
-          // Create missing profile
-          const username = email.split('@')[0];
-          
-          const { data: newUser, error: createError } = await supabase
-            .from('auth_user')
-            .insert({
-              username: username,
-              email: email,
-              first_name: username,
-              last_name: '',
-              password: 'managed_by_supabase_auth',
-              is_staff: false,
-              is_superuser: false,
-              is_active: true,
-              date_joined: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-          if (createError) {
-             console.error('Failed to auto-create user:', createError);
-             throw createError;
-          }
-
-          if (newUser) {
-            // Create employee record
-            // @ts-ignore - newUser inferred type issues
-            const userId = (newUser as any).id;
-            
-            const { error: employeeError } = await supabase
-                .from('employees_employee')
-                .insert({
-                user_id: userId,
-                hire_date: null,
-                job_title: null,
-                });
-
-            if (employeeError) {
-                console.error('Failed to auto-create employee:', employeeError);
-                throw employeeError;
-            }
-          }
-
-          // Retry loading profile
-          return loadUserProfile(authUserId);
-        }
-        
-        throw authUserError;
+      if (!authUserData) {
+        throw new Error('User not found');
       }
 
       const employee = authUserData.employees_employee?.[0];
-      
+
       const userProfile: User = {
         id: authUserData.id,
         username: authUserData.username,
@@ -157,7 +92,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       setUser(userProfile);
-      
+
       // Load all data
       await Promise.all([
         loadUsers(),
@@ -167,6 +102,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
     } catch (error) {
       console.error('Error loading user profile:', error);
+      // If user doesn't exist in database, logout
+      AuthService.logout();
+      throw error;
     }
   };
 
@@ -273,31 +211,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const entriesData: TimesheetEntry[] = timeworks.map(tw => {
         const ts = tw.timesheets_timesheet!;
         const employee = ts.employees_employee!;
-        
+
         return dbToEntry(tw, ts, employee.user_id);
       });
       setEntries(entriesData);
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // Use Django backend for authentication
+      await AuthService.login(username, password);
 
-      if (error) {
-        console.error('Login error:', error);
+      // Get user info from JWT token
+      const jwtUser = AuthService.getCurrentUser();
+      if (!jwtUser) {
         return false;
       }
 
-      if (data.user) {
-        await loadUserProfile(data.user.id);
-        return true;
-      }
-
-      return false;
+      // Load user profile from database
+      await loadUserProfile(jwtUser.user_id);
+      return true;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -306,7 +240,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      AuthService.logout();
       setUser(null);
       setUsers([]);
       setClients([]);
@@ -476,7 +410,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const date = entry.date || entry.day;
-      
+
       // First, ensure timesheet exists for this day
       const { data: existingTimesheet, error: tsCheckError } = await supabase
         .from('timesheets_timesheet')
