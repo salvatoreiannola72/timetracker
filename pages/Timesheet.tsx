@@ -54,17 +54,34 @@ export const Timesheet: React.FC = () => {
     
     // First day of the month
     const firstDay = new Date(year, month, 1);
-    const firstDayWeekday = firstDay.getDay();
-    const startDay = firstDayWeekday === 0 ? -6 : 1 - firstDayWeekday; // Adjust for Monday start
+    const MONDAY = 1;
+    const day = firstDay.getDay();
+    let diff = day - MONDAY;
+    if (diff < 0) diff += 7;
+    const mondayDate = new Date(firstDay);
+    mondayDate.setDate(firstDay.getDate() - diff);
     
     // Generate 6 weeks (42 days) to ensure we show complete calendar
     const dates = [];
     for (let i = 0; i < 42; i++) {
-      const d = new Date(year, month, startDay + i);
+      const d = new Date(mondayDate);
+      d.setDate(mondayDate.getDate() + i);
       dates.push(d);
     }
     return dates;
   }, [currentDate]);
+
+  const isSameDay = (a: Date, b: Date) => {
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  const formatDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 
   // Generate Year Data (12 months)
   const yearMonths = useMemo(() => {
@@ -451,12 +468,11 @@ export const Timesheet: React.FC = () => {
           {/* Calendar grid - Mobile optimized */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {monthDates.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
+              const dateStr = formatDate(date);
               const dayEntries = filteredEntries.filter(e => e.date === dateStr);
               const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const isToday = isSameDay(date, new Date())
               const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-
               return (
                 <div
                   key={index}
