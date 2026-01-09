@@ -3,6 +3,7 @@ import { User, Client, Project, TimesheetEntry, AppState } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
 import { AuthService } from '@/services/auth';
+import { EmployeesService } from '@/services/employees'
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -113,24 +114,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loadUsers = async () => {
-    const { data, error } = await supabase
-      .from('auth_user')
-      .select(`
-        *,
-        employees_employee (
-          id,
-          hire_date,
-          job_title
-        )
-      `)
-      .eq('is_active', true)
-      .order('first_name');
+    const employeesData = await EmployeesService.getEmployees();
 
-    if (!error && data) {
-      const usersData: User[] = data.map(u => {
-        const employee = u.employees_employee?.[0];
+    if (!employeesData) {
+      throw new Error('Employees not found');
+    }
+   
+      const usersData: User[] = employeesData.map(u => {
         return {
-          id: u.id,
+          id: u.user_id,
           username: u.username,
           email: u.email,
           first_name: u.first_name,
@@ -139,9 +131,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           is_staff: u.is_staff,
           is_superuser: u.is_superuser,
           is_active: u.is_active,
-          employee_id: employee?.id,
-          hire_date: employee?.hire_date,
-          job_title: employee?.job_title,
+          employee_id: u.id,
+          hire_date: u.hire_date,
+          job_title: u.job_title,
           // Leave tracking - default values for now, will be from DB later
           vacation_days_total: 22,
           vacation_days_used: 0,
@@ -155,7 +147,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
       });
       setUsers(usersData);
-    }
+    
   };
 
   const loadClients = async () => {
