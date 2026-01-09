@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
 import { AuthService } from '@/services/auth';
 import { EmployeesService } from '@/services/employees'
+import { CustomersService } from '@/services/customers';
+import { ProjectsService } from '@/services/projects';
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -151,23 +153,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loadClients = async () => {
-    const { data, error } = await supabase
-      .from('customers_customer')
-      .select('*')
-      .order('name');
+    const data = await CustomersService.getCustomers();
 
-    if (!error && data) {
+    if (data) {
       setClients(data);
     }
   };
 
   const loadProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects_project')
-      .select('*')
-      .order('name');
+    const data = await ProjectsService.getProjects();
 
-    if (!error && data) {
+    if (data) {
       const projectsData: Project[] = data.map(p => ({
         ...p,
         customerId: p.customer_id
