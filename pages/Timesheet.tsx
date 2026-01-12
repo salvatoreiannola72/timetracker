@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock } from 'lucide-react';
 import { EntryType, Timesheet as TimesheetEntry } from '../types';
 import { TimesheetsService } from '@/services/timesheets';
+import { time } from 'console';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -12,7 +13,7 @@ const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno
 type ViewType = 'week' | 'month' | 'year';
 
 export const Timesheet: React.FC = () => {
-  const { user, entries, projects, clients, addEntry, deleteEntry } = useStore();
+  const { user, projects, clients, addEntry, deleteEntry } = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,7 +136,7 @@ export const Timesheet: React.FC = () => {
     } else if (viewType === 'month') {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
-      return entries.filter(e => {
+      return timesheets.filter(e => {
         if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year && entryDate.getMonth() === month;
@@ -143,13 +144,13 @@ export const Timesheet: React.FC = () => {
     } else {
       // year view
       const year = currentDate.getFullYear();
-      return entries.filter(e => {
+      return timesheets.filter(e => {
         if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year;
       });
     }
-  }, [entries, user, weekDates, currentDate, viewType]);
+  }, [timesheets, user, weekDates, currentDate, viewType]);
 
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
