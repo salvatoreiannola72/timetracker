@@ -154,7 +154,7 @@ export const Timesheet: React.FC = () => {
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
     if (!formData.clientId) return [];
-    return projects.filter(p => p.customer_id === Number(formData.clientId));
+    return projects.filter(p => p.customer === Number(formData.clientId));
   }, [projects, formData.clientId]);
 
   const handlePrev = () => {
@@ -329,7 +329,6 @@ export const Timesheet: React.FC = () => {
               {weekDates.map((date, index) => {
                 const dateStr = date.toISOString().split('T')[0];
                 const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-                console.log('Entries for', dateStr, dayEntries);
                 const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
 
