@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../context/Store';
 import { Button } from '../components/Button';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock } from 'lucide-react';
-import { EntryType } from '../types';
+import { EntryType, Timesheet as TimesheetEntry } from '../types';
+import { TimesheetsService } from '@/services/timesheets';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -16,6 +17,30 @@ export const Timesheet: React.FC = () => {
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
+  const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
+
+  const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
+    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
+    const timesheets: any[] = data?.map((item: any) => {
+      let timesheet = {
+        userId: user.id,
+        user_id: user.id,
+        projectId: item.project_id,
+        entry_type: EntryType.WORK,
+        ...item
+      }
+      return timesheet;
+    }) || [];
+    setTimesheets(timesheets);
+  }
+
+  useEffect(() => {
+    if (user?.id) {
+      //const month = currentDate.getMonth() + 1; // getMonth() returns 0-11, quindi +1
+      //const year = currentDate.getFullYear();
+      loadTimesheets(user.id);
+    }
+  }, [user?.id]);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -102,7 +127,7 @@ export const Timesheet: React.FC = () => {
     if (viewType === 'week') {
       const startStr = weekDates[0].toISOString().split('T')[0];
       const endStr = weekDates[6].toISOString().split('T')[0];
-      return entries.filter(e => 
+      return timesheets.filter(e => 
         e.userId === user?.id && 
         e.date >= startStr && 
         e.date <= endStr
@@ -304,6 +329,7 @@ export const Timesheet: React.FC = () => {
               {weekDates.map((date, index) => {
                 const dateStr = date.toISOString().split('T')[0];
                 const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+                console.log('Entries for', dateStr, dayEntries);
                 const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
 
