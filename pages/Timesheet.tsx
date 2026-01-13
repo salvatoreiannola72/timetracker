@@ -35,7 +35,7 @@ export const Timesheet: React.FC = () => {
 
   const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
     const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
-    const timesheets: any[] = data?.map((item: any) => {
+    const timesheets: any[] = data?.flatMap((item: any, index: number) => {
       let timesheet = {
         userId: user.id,
         user_id: user.id,
@@ -44,10 +44,28 @@ export const Timesheet: React.FC = () => {
         entry_type: getEntryType(item),
         ...item
       }
-      return timesheet;
+      //in caso di permesso rimuovo type dall'originale e creo entry per le ore di permesso
+      if (item.permit_hours !== null && item.permit_hours > 0) {
+        timesheet.entry_type = EntryType.WORK
+        const clonedTimesheet = {
+          id: `${timesheet.id}_${index}`,
+          userId: user.id,
+          user_id: user.id,
+          permit_hours: item.permit_hours,
+          hours: 0,
+          date : item.day,
+          entry_type: EntryType.PERMIT
+         
+        };
+        return [timesheet, clonedTimesheet];
+      }
+      
+      return [timesheet];
     }) || [];
     setTimesheets(timesheets);
   }
+
+ 
 
   useEffect(() => {
     if (user?.id) {
@@ -387,8 +405,8 @@ export const Timesheet: React.FC = () => {
                                    <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
                                  </div>
                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                                 <div className="mt-2 flex justify-between items-center">
-                                      {entry.hours && <span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>}
+                                 <div className="mt-2 flex justify-between items-center">  
+                                      {(entry.hours || entry.permit_hours) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h</span>)}
                                      <button 
                                       onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
@@ -465,7 +483,7 @@ export const Timesheet: React.FC = () => {
                                </div>
                                {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                <div className="mt-2 flex justify-between items-center">
-                                {entry.hours && <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>}
+                                {(entry.hours || entry.permit_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h</span>)}
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
@@ -536,17 +554,31 @@ export const Timesheet: React.FC = () => {
                   <div className="space-y-0.5 sm:space-y-1">
                     {dayEntries.slice(0, 2).map(entry => {
                       const project = projects.find(p => p.id === entry.projectId);
+                      console.log(dayEntries)
+                      const entryConfig = {
+                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                      };
+                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                      const Icon = config.icon;
+
                       return (
-                        <div
-                          key={entry.id}
-                          className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
-                          style={{ backgroundColor: `${project?.color}20`, borderLeft: `2px solid ${project?.color}` }}
-                        >
-                          {entry.hours && <span className="font-medium">{entry.hours}h</span>}
-                          
-                          <span className="hidden sm:inline"> {project?.name}</span>
-                        </div>
-                      );
+                            <div
+                              key={entry.id}
+                              className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
+                              style={{ backgroundColor: `${config.bgColor}`, borderLeft: `2px solid ${config.color}` }}
+                            >
+                              {(entry.hours || entry.permit_hours) && (
+                                <span className="font-medium">
+                                  {entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h
+                                </span>
+                              )}
+                              
+                              <span className="hidden sm:inline"> {config.label}</span>
+                            </div>
+                          );
                     })}
                     {dayEntries.length > 2 && (
                       <div className="text-[10px] sm:text-xs text-slate-400 font-medium">
