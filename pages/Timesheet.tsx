@@ -542,7 +542,8 @@ export const Timesheet: React.FC = () => {
                           className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
                           style={{ backgroundColor: `${project?.color}20`, borderLeft: `2px solid ${project?.color}` }}
                         >
-                          <span className="font-medium">{entry.hours}h</span>
+                          {entry.hours && <span className="font-medium">{entry.hours}h</span>}
+                          
                           <span className="hidden sm:inline"> {project?.name}</span>
                         </div>
                       );
