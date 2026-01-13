@@ -26,8 +26,26 @@ export class TimesheetsService {
                     Authorization: `Bearer ${token}`,
                 },
             });
+
+            const noWorkedHoursUrl = new URL(`${backendUrl}/api/timesheets/`);
+            if (employeeId != null) {
+                noWorkedHoursUrl.searchParams.set('employee', String(employeeId));
+            }
+            if (month != null) {
+                noWorkedHoursUrl.searchParams.set('month', String(month));
+            }
+            if (year != null) {
+                noWorkedHoursUrl.searchParams.set('year', String(year));
+            }
+            noWorkedHoursUrl.searchParams.set('no_worked_hours', 'true');
+            const noWorkedHoursResponse = await fetch(noWorkedHoursUrl.toString(), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const noWorkedHoursData = await noWorkedHoursResponse.json();
             const data = await response.json();
-            return data;
+            return [...data, ...noWorkedHoursData];
         } catch (error) {
             console.error('Error fetching timesheet entries:', error);
             return null;

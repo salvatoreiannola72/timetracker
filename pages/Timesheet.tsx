@@ -20,6 +20,19 @@ export const Timesheet: React.FC = () => {
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
 
+  const getEntryType = (item) =>{
+    if (item.permit_hours !== null && item.permit_hours > 0) {
+      return EntryType.PERMIT;
+    }
+    if (item.holiday) {
+      return EntryType.VACATION;
+    }
+    if (item.illness) {
+      return EntryType.SICK_LEAVE;
+    }
+    return EntryType.WORK;
+  }
+
   const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
     const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
     const timesheets: any[] = data?.map((item: any) => {
@@ -27,7 +40,8 @@ export const Timesheet: React.FC = () => {
         userId: user.id,
         user_id: user.id,
         projectId: item.project_id,
-        entry_type: EntryType.WORK,
+        date : item.day,
+        entry_type: getEntryType(item),
         ...item
       }
       return timesheet;
@@ -374,7 +388,7 @@ export const Timesheet: React.FC = () => {
                                  </div>
                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                  <div className="mt-2 flex justify-between items-center">
-                                     <span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
+                                      {entry.hours && <span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>}
                                      <button 
                                       onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
@@ -451,7 +465,7 @@ export const Timesheet: React.FC = () => {
                                </div>
                                {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                <div className="mt-2 flex justify-between items-center">
-                                   <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>
+                                {entry.hours && <span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.hours}h</span>}
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
