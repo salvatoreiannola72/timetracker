@@ -6,6 +6,7 @@ import { AuthService } from '@/services/auth';
 import { EmployeesService } from '@/services/employees'
 import { CustomersService } from '@/services/customers';
 import { ProjectsService } from '@/services/projects';
+import { TimesheetsService, Timesheet, WorkHour } from '@/services/timesheets';
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -66,7 +67,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error('No current user found');
       }
       const employeeData = await AuthService.getEmployeeFromCurrentUser();
-
+      console.log("employeeData: ", employeeData)
       if (!employeeData) {
         throw new Error('Employee not found');
       }
@@ -74,7 +75,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const employee = employeeData.employees_employee?.[0];
 
       const userProfile: User = {
-        id: employeeData.id,
+        id: employeeData.user_id,
         username: employeeData.username,
         email: employeeData.email,
         first_name: employeeData.first_name,
@@ -83,9 +84,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         is_staff: currentUser.is_staff,
         is_superuser: employeeData.is_superuser,
         is_active: employeeData.is_active,
-        employee_id: employee?.id,
-        hire_date: employee?.hire_date,
-        job_title: employee?.job_title,
+        employee_id: employeeData?.id,
+        hire_date: employeeData?.hire_date,
+        job_title: employeeData?.job_title,
         // Leave tracking - default values for now, will be from DB later
         vacation_days_total: 22,
         vacation_days_used: 0,
@@ -398,6 +399,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addEntry = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
+    console.log("user?.employee_id", user)
+    console.log("entry", entry)
+    if (!user?.employee_id) return;
+    try {
+      const date = entry.date || entry.day;
+      console.log("date", date)
+      const workHour : WorkHour[] = [
+                          {
+                            project: entry.project_id || entry.projectId,
+                            customer: null,
+                            hours: entry.hours
+                          }
+                        ];
+
+      const timesheet : Timesheet = {
+          id: null,
+          day: date,
+          employee: user.employee_id,
+          worked_hours: workHour,
+          permits_hours: entry.permits_hours || 0,
+          illness: entry.illness || false,
+          holiday: entry.holiday || false
+        };
+
+      const newTimesheet = await TimesheetsService.createTimesheet(timesheet);
+      console.log("newTimesheet", newTimesheet)
+      if (!newTimesheet) {
+        throw new Error('newTimesheet not create');
+      }
+
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      throw error;
+    }
+  };
+
+  const addEntryOld = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
     if (!user?.employee_id) return;
 
     try {

@@ -242,58 +242,66 @@ export const Timesheet: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveEntry = (e: React.FormEvent) => {
+  const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDateForAdd || !user) return;
 
-    const createEntry = (date: string) => {
-        addEntry({
-            userId: user.id,
-            projectId: formData.entryType === EntryType.WORK ? formData.projectId : null,
-            date: date,
-            hours: Number(formData.hours),
-            entry_type: formData.entryType,
-            description: formData.description
-        });
+    const createEntry = async (date: string) => {
+      await addEntry({
+        userId: user.id,
+        projectId: formData.entryType === EntryType.WORK ? formData.projectId : null,
+        date: date,
+        hours: Number(formData.hours),
+        entry_type: formData.entryType,
+        description: formData.description
+      });
     };
 
-    if (formData.recurrence === 'NONE') {
-        createEntry(selectedDateForAdd);
-    } else {
+    try {
+      if (formData.recurrence === 'NONE') {
+        await createEntry(selectedDateForAdd);
+      } else {
         const startParts = selectedDateForAdd.split('-').map(Number);
         const endParts = formData.recurrenceEnd.split('-').map(Number);
         
-        // Create dates using local time constructor to avoid timezone issues
         const current = new Date(startParts[0], startParts[1] - 1, startParts[2]);
         const end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
-        const startDayOfWeek = current.getDay(); // 0-6
+        const startDayOfWeek = current.getDay();
 
+        const promises = [];
+        
         while (current <= end) {
-            const day = current.getDay();
-            let shouldAdd = false;
+          const day = current.getDay();
+          let shouldAdd = false;
 
-            if (formData.recurrence === 'DAILY') {
-                // Daily (Mon-Fri) - Skip Weekends (0 is Sun, 6 is Sat)
-                if (day !== 0 && day !== 6) shouldAdd = true;
-            } else if (formData.recurrence === 'WEEKLY') {
-                // Same day of week
-                if (day === startDayOfWeek) shouldAdd = true;
-            }
+          if (formData.recurrence === 'DAILY') {
+            if (day !== 0 && day !== 6) shouldAdd = true;
+          } else if (formData.recurrence === 'WEEKLY') {
+            if (day === startDayOfWeek) shouldAdd = true;
+          }
 
-            if (shouldAdd) {
-                // Format YYYY-MM-DD manually to ensure local consistency
-                const y = current.getFullYear();
-                const m = String(current.getMonth() + 1).padStart(2, '0');
-                const d = String(current.getDate()).padStart(2, '0');
-                createEntry(`${y}-${m}-${d}`);
-            }
+          if (shouldAdd) {
+            const y = current.getFullYear();
+            const m = String(current.getMonth() + 1).padStart(2, '0');
+            const d = String(current.getDate()).padStart(2, '0');
+            promises.push(createEntry(`${y}-${m}-${d}`));
+          }
 
-            // Next day
-            current.setDate(current.getDate() + 1);
+          current.setDate(current.getDate() + 1);
         }
-    }
+        
+        // Attendi che tutte le entry siano create
+        await Promise.all(promises);
+      }
 
-    setIsModalOpen(false);
+      // Ricarica i timesheets dopo aver salvato
+      await loadTimesheets(user.id);
+      
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Errore nel salvataggio:", error);
+      // Gestisci l'errore come preferisci (mostra un messaggio, etc.)
+    }
   };
 
   return (
