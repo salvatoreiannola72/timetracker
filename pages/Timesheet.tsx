@@ -410,7 +410,7 @@ export const Timesheet: React.FC = () => {
                         return (
                           <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm active:shadow-md transition-shadow touch-manipulation">
                              <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                             <div className={`${entry.entry_type === EntryType.VACATION ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"} pl-2 gap-2`}>
+                             <div className={`${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"} pl-2 gap-2`}>
                                  <div className="flex items-center gap-2">
                                    <Icon size={14} style={{ color: config.color }} />
                                    <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
@@ -487,7 +487,7 @@ export const Timesheet: React.FC = () => {
                       return (
                         <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                            <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                           <div className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"}`}>
+                           <div className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"}`}>
                                <div className="flex items-center gap-2">
                                  <Icon size={12} style={{ color: config.color }} />
                                  <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
