@@ -88,7 +88,16 @@ export class TimesheetsService {
                 if(timesheet.worked_hours[0]){
                     existingTimesheet.worked_hours.push(timesheet.worked_hours[0])
                 }
-                existingTimesheet.permits_hours = timesheet.permits_hours
+                if(timesheet.permits_hours > 0){
+                    existingTimesheet.permits_hours = timesheet.permits_hours
+                }
+                if(timesheet.holiday || timesheet.illness){
+                    existingTimesheet.permits_hours = 0;
+                    existingTimesheet.worked_hours = [];
+                }
+                existingTimesheet.holiday = timesheet.holiday;
+                existingTimesheet.illness = timesheet.illness;
+                
                 return this.updateTimesheet(existingTimesheet);
             }
             const response = await fetch(`${backendUrl}/api/timesheets/`, {
