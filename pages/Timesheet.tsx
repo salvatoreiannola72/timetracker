@@ -484,13 +484,13 @@ export const Timesheet: React.FC = () => {
                       return (
                         <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                            <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                           <div className="pl-2">
+                           <div className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"}`}>
                                <div className="flex items-center gap-2">
                                  <Icon size={12} style={{ color: config.color }} />
                                  <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
                                </div>
                                {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                               <div className="mt-2 flex justify-between items-center">
+                               <div className="flex justify-between  ">
                                 {(entry.hours || entry.permit_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h</span>)}
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
