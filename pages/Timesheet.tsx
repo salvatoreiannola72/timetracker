@@ -417,7 +417,7 @@ export const Timesheet: React.FC = () => {
                                  </div>
                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                  <div className="mt-2 flex justify-between items-center">  
-                                      {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+                                      {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                      <button 
                                       onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
@@ -494,7 +494,7 @@ export const Timesheet: React.FC = () => {
                                </div>
                                {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                <div className="mt-2 flex justify-between items-center">
-                                {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+                                {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
@@ -581,7 +581,7 @@ export const Timesheet: React.FC = () => {
                               className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
                               style={{ backgroundColor: `${config.bgColor}`, borderLeft: `2px solid ${config.color}` }}
                             >
-                              {(entry.hours || entry.permits_hours) && (
+                              {(entry.hours > 0 || entry.permits_hours > 0) && (
                                 <span className="font-medium">
                                   {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
                                 </span>

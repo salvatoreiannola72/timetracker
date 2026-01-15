@@ -402,13 +402,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user?.employee_id) return;
     try {
       const date = entry.date || entry.day;
-      const workHour : WorkHour[] = !entry.permits_hours ? [
-                          {
-                            project: entry.project_id || entry.projectId,
-                            customer: null,
-                            hours: entry.hours
-                          }
-                        ] : [];
+      const hasNoWorkedHours =
+        entry.permits_hours > 0 ||
+        entry.illness === true ||
+        entry.holiday === true;
+
+      const workHour: WorkHour[] = hasNoWorkedHours
+        ? []
+        : [
+            {
+              project: entry.project_id ?? entry.projectId,
+              customer: null,
+              hours: entry.hours,
+            },
+          ];
 
       const timesheet : Timesheet = {
           id: null,
