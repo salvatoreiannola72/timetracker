@@ -21,7 +21,7 @@ export const Timesheet: React.FC = () => {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
 
   const getEntryType = (item) =>{
-    if (item.permit_hours !== null && item.permit_hours > 0) {
+    if (item.permits_hours !== null && item.permits_hours > 0) {
       return EntryType.PERMIT;
     }
     if (item.holiday) {
@@ -45,19 +45,19 @@ export const Timesheet: React.FC = () => {
         ...item
       }
       //in caso di permesso rimuovo type dall'originale e creo entry per le ore di permesso
-      if (item.permit_hours !== null && item.permit_hours > 0) {
+      if (item.permits_hours !== null && item.permits_hours > 0) {
         timesheet.entry_type = EntryType.WORK
         const clonedTimesheet = {
-          id: `${timesheet.id}_${index}`,
+          id: `${timesheet.id}`,
           userId: user.id,
           user_id: user.id,
-          permit_hours: item.permit_hours,
+          permits_hours: item.permits_hours,
           hours: 0,
           date : item.day,
           entry_type: EntryType.PERMIT
          
         };
-        return [timesheet, clonedTimesheet];
+        return [clonedTimesheet];
       }
       
       return [timesheet];
@@ -253,7 +253,10 @@ export const Timesheet: React.FC = () => {
         date: date,
         hours: Number(formData.hours),
         entry_type: formData.entryType,
-        description: formData.description
+        description: formData.description,
+        permits_hours: formData.entryType === EntryType.PERMIT ? Number(formData.hours) : 0,
+        illness: formData.entryType === EntryType.SICK_LEAVE,
+        holiday: formData.entryType === EntryType.VACATION
       });
     };
 
@@ -414,7 +417,7 @@ export const Timesheet: React.FC = () => {
                                  </div>
                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                  <div className="mt-2 flex justify-between items-center">  
-                                      {(entry.hours || entry.permit_hours) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h</span>)}
+                                      {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                      <button 
                                       onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
@@ -491,7 +494,7 @@ export const Timesheet: React.FC = () => {
                                </div>
                                {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                                <div className="mt-2 flex justify-between items-center">
-                                {(entry.hours || entry.permit_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h</span>)}
+                                {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
@@ -578,9 +581,9 @@ export const Timesheet: React.FC = () => {
                               className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
                               style={{ backgroundColor: `${config.bgColor}`, borderLeft: `2px solid ${config.color}` }}
                             >
-                              {(entry.hours || entry.permit_hours) && (
+                              {(entry.hours || entry.permits_hours) && (
                                 <span className="font-medium">
-                                  {entry.entry_type === EntryType.PERMIT ? entry.permit_hours : entry.hours}h
+                                  {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
                                 </span>
                               )}
                               

@@ -399,19 +399,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addEntry = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
-    console.log("user?.employee_id", user)
-    console.log("entry", entry)
     if (!user?.employee_id) return;
     try {
       const date = entry.date || entry.day;
-      console.log("date", date)
-      const workHour : WorkHour[] = [
+      const workHour : WorkHour[] = !entry.permits_hours ? [
                           {
                             project: entry.project_id || entry.projectId,
                             customer: null,
                             hours: entry.hours
                           }
-                        ];
+                        ] : [];
 
       const timesheet : Timesheet = {
           id: null,
