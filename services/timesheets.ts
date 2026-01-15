@@ -3,7 +3,7 @@ const backendUrl = import.meta.env.VITE_TIMETRACKER_BACKEND_URL;
 
 export interface WorkHour {
     project: number,
-    customer: number,
+    customer?: number,
     hours: number
 }
  
@@ -73,26 +73,44 @@ export class TimesheetsService {
         if (!token) return null;
 
         try {
-        const response = await fetch(`${backendUrl}/api/timesheets/`, {
-            method: 'POST',
-            headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            },
-            body: JSON.stringify(timesheet),
-        });
+            const url = new URL(`${backendUrl}/api/timesheets/`);
+            if (timesheet.day != null) {
+                url.searchParams.set('day', String(timesheet.day));
+            }
+            const responseExistingTimesheet = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const data = await responseExistingTimesheet.json();
+            const existingTimesheet = data[0]
+            if(existingTimesheet){
+                if(timesheet.worked_hours[0]){
+                    existingTimesheet.worked_hours.push(timesheet.worked_hours[0])
+                }
+                existingTimesheet.permits_hours = timesheet.permits_hours
+                return this.updateTimesheet(existingTimesheet);
+            }
+            const response = await fetch(`${backendUrl}/api/timesheets/`, {
+                method: 'POST',
+                headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                },
+                body: JSON.stringify(timesheet),
+            });
 
-        // se backend risponde con errore, fetch NON va in catch automaticamente
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            console.error('createTimesheet failed', response.status, text);
-            return null;
-        }
+            // se backend risponde con errore, fetch NON va in catch automaticamente
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                console.error('createTimesheet failed', response.status, text);
+                return null;
+            }
 
-        const newTimesheet = (await response.json()) as Timesheet;
-        console.log('Timesheet successfully created', newTimesheet);
-        return newTimesheet;
+            const newTimesheet = (await response.json()) as Timesheet;
+            console.log('Timesheet successfully created', newTimesheet);
+            return newTimesheet;
         } catch (error) {
         console.error('Error creating timesheet:', error);
         return null;
