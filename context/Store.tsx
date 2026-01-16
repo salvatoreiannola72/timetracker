@@ -166,7 +166,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (data) {
       const projectsData: Project[] = data.map(p => ({
         ...p,
-        customerId: p.customer_id
+        customerId: p.customer,
+        customer_id: p.customer
       }));
       setProjects(projectsData);
     }
