@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+// pages/Timesheet.tsx
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/Store';
+import { useTimesheets } from '../hooks/useTimesheets';
 import { Button } from '../components/Button';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock } from 'lucide-react';
-import { EntryType, Timesheet as TimesheetEntry } from '../types';
-import { TimesheetsService } from '@/services/timesheets';
-import { time } from 'console';
+import { EntryType } from '../types';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -13,68 +13,27 @@ const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno
 type ViewType = 'week' | 'month' | 'year';
 
 export const Timesheet: React.FC = () => {
-  const { user, projects, clients, addEntry, deleteEntry } = useStore();
+  // Dallo store prendiamo SOLO i dati essenziali
+  const { user, projects, clients } = useStore();
+  
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
-  const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
 
-  const getEntryType = (item) =>{
-    if (item.permits_hours !== null && item.permits_hours > 0) {
-      return EntryType.PERMIT;
-    }
-    if (item.holiday) {
-      return EntryType.VACATION;
-    }
-    if (item.illness) {
-      return EntryType.SICK_LEAVE;
-    }
-    return EntryType.WORK;
-  }
+  // Usa il custom hook per i timesheet con lazy loading
+  const { 
+    timesheets, 
+    loading, 
+    error,
+    addTimesheet, 
+    deleteTimesheet 
+  } = useTimesheets({
+    employeeId: user?.id || 0,
+    month: currentDate.getMonth() + 1,
+    year: currentDate.getFullYear(),
+  });
 
-  const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
-    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
-    const timesheets: any[] = data?.flatMap((item: any, index: number) => {
-      let timesheet = {
-        userId: user.id,
-        user_id: user.id,
-        projectId: item.project_id,
-        date : item.day,
-        entry_type: getEntryType(item),
-        ...item
-      }
-      //in caso di permesso rimuovo type dall'originale e creo entry per le ore di permesso
-      if (item.permits_hours !== null && item.permits_hours > 0) {
-        timesheet.entry_type = EntryType.WORK
-        const clonedTimesheet = {
-          id: `${timesheet.id}`,
-          userId: user.id,
-          user_id: user.id,
-          permits_hours: item.permits_hours,
-          hours: 0,
-          date : item.day,
-          entry_type: EntryType.PERMIT
-         
-        };
-        return [clonedTimesheet];
-      }
-      
-      return [timesheet];
-    }) || [];
-    setTimesheets(timesheets);
-  }
-
- 
-
-  useEffect(() => {
-    if (user?.id) {
-      //const month = currentDate.getMonth() + 1; // getMonth() returns 0-11, quindi +1
-      //const year = currentDate.getFullYear();
-      loadTimesheets(user.id);
-    }
-  }, [user?.id]);
-  
   // Form State
   const [formData, setFormData] = useState({
     entryType: EntryType.WORK,
@@ -110,7 +69,6 @@ export const Timesheet: React.FC = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
-    // First day of the month
     const firstDay = new Date(year, month, 1);
     const MONDAY = 1;
     const day = firstDay.getDay();
@@ -119,7 +77,6 @@ export const Timesheet: React.FC = () => {
     const mondayDate = new Date(firstDay);
     mondayDate.setDate(firstDay.getDate() - diff);
     
-    // Generate 6 weeks (42 days) to ensure we show complete calendar
     const dates = [];
     for (let i = 0; i < 42; i++) {
       const d = new Date(mondayDate);
@@ -128,18 +85,6 @@ export const Timesheet: React.FC = () => {
     }
     return dates;
   }, [currentDate]);
-
-  const isSameDay = (a: Date, b: Date) => {
-    return (
-      a.getFullYear() === b.getFullYear() &&
-      a.getMonth() === b.getMonth() &&
-      a.getDate() === b.getDate()
-    );
-  }
-
-  const formatDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
 
   // Generate Year Data (12 months)
   const yearMonths = useMemo(() => {
@@ -155,13 +100,23 @@ export const Timesheet: React.FC = () => {
     });
   }, [currentDate]);
 
+  const isSameDay = (a: Date, b: Date) => {
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  };
+
+  const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   // Filter entries based on view
   const filteredEntries = useMemo(() => {
     if (viewType === 'week') {
       const startStr = weekDates[0].toISOString().split('T')[0];
       const endStr = weekDates[6].toISOString().split('T')[0];
       return timesheets.filter(e => 
-        e.userId === user?.id && 
         e.date >= startStr && 
         e.date <= endStr
       );
@@ -169,7 +124,6 @@ export const Timesheet: React.FC = () => {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       return timesheets.filter(e => {
-        if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year && entryDate.getMonth() === month;
       });
@@ -177,12 +131,11 @@ export const Timesheet: React.FC = () => {
       // year view
       const year = currentDate.getFullYear();
       return timesheets.filter(e => {
-        if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year;
       });
     }
-  }, [timesheets, user, weekDates, currentDate, viewType]);
+  }, [timesheets, weekDates, currentDate, viewType]);
 
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
@@ -226,18 +179,17 @@ export const Timesheet: React.FC = () => {
 
   const openAddModal = (dateStr: string) => {
     setSelectedDateForAdd(dateStr);
-    // Default end date to 2 weeks from now if needed
     const defaultEnd = new Date(dateStr);
     defaultEnd.setDate(defaultEnd.getDate() + 14);
     
     setFormData({ 
-        entryType: EntryType.WORK,
-        clientId: '',
-        projectId: '', 
-        hours: 4, 
-        description: '',
-        recurrence: 'NONE',
-        recurrenceEnd: defaultEnd.toISOString().split('T')[0]
+      entryType: EntryType.WORK,
+      clientId: '',
+      projectId: '', 
+      hours: 4, 
+      description: '',
+      recurrence: 'NONE',
+      recurrenceEnd: defaultEnd.toISOString().split('T')[0]
     });
     setIsModalOpen(true);
   };
@@ -247,8 +199,7 @@ export const Timesheet: React.FC = () => {
     if (!selectedDateForAdd || !user) return;
 
     const createEntry = async (date: string) => {
-      await addEntry({
-        userId: user.id,
+      return await addTimesheet({
         projectId: formData.entryType === EntryType.WORK ? formData.projectId : null,
         date: date,
         hours: Number(formData.hours),
@@ -262,7 +213,10 @@ export const Timesheet: React.FC = () => {
 
     try {
       if (formData.recurrence === 'NONE') {
-        await createEntry(selectedDateForAdd);
+        const result = await createEntry(selectedDateForAdd);
+        if (result.success) {
+          setIsModalOpen(false);
+        }
       } else {
         const startParts = selectedDateForAdd.split('-').map(Number);
         const endParts = formData.recurrenceEnd.split('-').map(Number);
@@ -293,19 +247,38 @@ export const Timesheet: React.FC = () => {
           current.setDate(current.getDate() + 1);
         }
         
-        // Attendi che tutte le entry siano create
         await Promise.all(promises);
+        setIsModalOpen(false);
       }
-
-      // Ricarica i timesheets dopo aver salvato
-      await loadTimesheets(user.id);
-      
-      setIsModalOpen(false);
     } catch (error) {
       console.error("Errore nel salvataggio:", error);
-      // Gestisci l'errore come preferisci (mostra un messaggio, etc.)
     }
   };
+
+  const handleDeleteEntry = async (id: number | string) => {
+    const result = await deleteTimesheet(id);
+    if (!result.success && result.error) {
+      alert(result.error);
+    }
+  };
+
+  // Mostra loading indicator
+  if (loading && timesheets.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-500">Caricamento timesheet...</div>
+      </div>
+    );
+  }
+
+  // Mostra errore se presente
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -316,7 +289,7 @@ export const Timesheet: React.FC = () => {
           <p className="text-slate-500 text-xs sm:text-sm">Gestisci le tue ore settimanali</p>
         </div>
         
-        {/* View Selector - Mobile optimized */}
+        {/* View Selector */}
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 sm:p-1 w-full sm:w-auto">
           <button
             onClick={() => setViewType('week')}
@@ -351,7 +324,7 @@ export const Timesheet: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation - Mobile optimized */}
+      {/* Navigation */}
       <div className="flex items-center justify-between bg-white p-2 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
         <button onClick={handlePrev} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
           <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
@@ -364,7 +337,10 @@ export const Timesheet: React.FC = () => {
         </button>
       </div>
 
-      {/* WEEK VIEW - Mobile vertical scroll */}
+      {/* Il resto del componente rimane identico, 
+          cambia solo deleteEntry con handleDeleteEntry */}
+      
+      {/* WEEK VIEW esempio */}
       {viewType === 'week' && (
         <>
           {/* Mobile: vertical scrolling view */}
@@ -419,7 +395,7 @@ export const Timesheet: React.FC = () => {
                                  <div className="mt-2 flex justify-between items-center">  
                                       {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                      <button 
-                                      onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
                                          <X size={16} />
                                      </button>
@@ -446,78 +422,78 @@ export const Timesheet: React.FC = () => {
           </div>
 
           {/* Desktop: Grid view */}
-          <div className="hidden md:grid md:grid-cols-7 gap-4">
-            {weekDates.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+        <div className="hidden md:grid md:grid-cols-7 gap-4">
+          {weekDates.map((date, index) => {
+            const dateStr = date.toISOString().split('T')[0];
+            const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+            const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+            const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-              return (
-                <div key={dateStr} className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
-                    ${isToday ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'}`}>
-                  
-                  {/* Day Header */}
-                  <div className="text-center pb-2 border-b border-slate-100/50">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
-                    <div className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
-                        ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
-                       {date.getDate()}
-                    </div>
-                    <div className="mt-1 h-5">
-                        {totalHours > 0 && (
-                            <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
-                        )}
-                    </div>
+            return (
+              <div key={dateStr} className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
+                  ${isToday ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'}`}>
+                
+                {/* Day Header */}
+                <div className="text-center pb-2 border-b border-slate-100/50">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
+                  <div className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
+                      ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
+                     {date.getDate()}
                   </div>
-
-                  {/* Entries List */}
-                  <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
-                    {dayEntries.map(entry => {
-                      const project = projects.find(p => p.id === entry.projectId);
-                      const entryConfig = {
-                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                      };
-                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                      const Icon = config.icon;
-                      
-                      return (
-                        <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                           <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                           <div className="pl-2">
-                               <div className="flex items-center gap-2">
-                                 <Icon size={12} style={{ color: config.color }} />
-                                 <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
-                               </div>
-                               {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                               <div className="mt-2 flex justify-between items-center">
-                                {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
-                                   <button 
-                                    onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
-                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-                                       <X size={12} />
-                                   </button>
-                               </div>
-                           </div>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-1 h-5">
+                      {totalHours > 0 && (
+                          <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                      )}
                   </div>
-
-                  {/* Add Button */}
-                  <button 
-                    onClick={() => openAddModal(dateStr)}
-                    className="mt-auto w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-1 text-sm font-medium"
-                  >
-                    <Plus size={16} /> Aggiungi
-                  </button>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Entries List */}
+                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                  {dayEntries.map(entry => {
+                    const project = projects.find(p => p.id === entry.projectId);
+                    const entryConfig = {
+                      [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                      [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                      [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                      [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                    };
+                    const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                    const Icon = config.icon;
+                    
+                    return (
+                      <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                         <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
+                         <div className="pl-2">
+                             <div className="flex items-center gap-2">
+                               <Icon size={12} style={{ color: config.color }} />
+                               <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                             </div>
+                             {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
+                             <div className="mt-2 flex justify-between items-center">
+                              {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+                                 <button 
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}
+                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+                                     <X size={12} />
+                                 </button>
+                             </div>
+                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Add Button */}
+                <button 
+                  onClick={() => openAddModal(dateStr)}
+                  className="mt-auto w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-1 text-sm font-medium"
+                >
+                  <Plus size={16} /> Aggiungi
+                </button>
+              </div>
+            );
+          })}
+        </div>
         </>
       )}
 

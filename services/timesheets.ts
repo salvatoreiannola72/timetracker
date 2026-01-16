@@ -6,7 +6,7 @@ export interface WorkHour {
     customer?: number,
     hours: number
 }
- 
+
 export interface Timesheet {
     id: number,
     day: string,
@@ -25,7 +25,7 @@ export class TimesheetsService {
         if (!token) return null;
 
         try {
-            
+
             const url = new URL(`${backendUrl}/api/timesheets/timeworks`);
             if (employeeId != null) {
                 url.searchParams.set('employee', String(employeeId));
@@ -84,28 +84,28 @@ export class TimesheetsService {
             });
             const data = await responseExistingTimesheet.json();
             const existingTimesheet = data[0]
-            if(existingTimesheet){
-                if(timesheet.worked_hours[0]){
+            if (existingTimesheet) {
+                if (timesheet.worked_hours[0]) {
                     existingTimesheet.worked_hours.push(timesheet.worked_hours[0])
                 }
-                if(timesheet.permits_hours > 0){
+                if (timesheet.permits_hours > 0) {
                     existingTimesheet.permits_hours = timesheet.permits_hours
                 }
-                if(timesheet.holiday || timesheet.illness){
+                if (timesheet.holiday || timesheet.illness) {
                     existingTimesheet.permits_hours = 0;
                     existingTimesheet.worked_hours = [];
                 }
                 existingTimesheet.holiday = timesheet.holiday;
                 existingTimesheet.illness = timesheet.illness;
-                
+
                 return this.updateTimesheet(existingTimesheet);
             }
             const response = await fetch(`${backendUrl}/api/timesheets/`, {
                 method: 'POST',
                 headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
                 },
                 body: JSON.stringify(timesheet),
             });
@@ -121,8 +121,8 @@ export class TimesheetsService {
             console.log('Timesheet successfully created', newTimesheet);
             return newTimesheet;
         } catch (error) {
-        console.error('Error creating timesheet:', error);
-        return null;
+            console.error('Error creating timesheet:', error);
+            return null;
         }
     }
 
@@ -137,26 +137,26 @@ export class TimesheetsService {
 
         try {
             const response = await fetch(
-            `${backendUrl}/api/timesheets/${timesheet.id}`,
-            {
-                method: 'PUT',
-                headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                },
-                body: JSON.stringify(timesheet),
-            }
+                `${backendUrl}/api/timesheets/${timesheet.id}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify(timesheet),
+                }
             );
 
             if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            console.error(
-                'Timesheet update failed',
-                response.status,
-                text
-            );
-            return null;
+                const text = await response.text().catch(() => '');
+                console.error(
+                    'Timesheet update failed',
+                    response.status,
+                    text
+                );
+                return null;
             }
 
             const updatedTimesheet = (await response.json()) as Timesheet;
@@ -167,6 +167,40 @@ export class TimesheetsService {
             console.error('Error updating timesheet:', error);
             return null;
         }
+    }
+
+    static async deleteTimesheet(id: number): Promise<boolean> {
+        const token = AuthService.getAccessToken();
+        if (!token) return false;
+
+        try {
+            const response = await fetch(
+                `${backendUrl}/api/timesheets/${id}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                console.error(
+                    'Timesheet deletion failed',
+                    response.status,
+                    text
+                );
+                return false;
+            }
+
+            console.log('Timesheet successfully deleted');
+            return true;
+
+        } catch (error) {
+            console.error('Error deleting timesheet:', error);
+            return false;
         }
+    }
 
 }
