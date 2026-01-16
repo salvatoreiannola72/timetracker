@@ -1,6 +1,6 @@
 // hooks/useTimesheets.ts
 import { useState, useCallback, useEffect } from 'react';
-import { TimesheetsService, Timesheet } from '@/services/timesheets';
+import { TimesheetsService, Timesheet, WorkHour } from '@/services/timesheets';
 import { EntryType } from '@/types';
 
 interface TimesheetFilters {
@@ -79,7 +79,7 @@ export const useTimesheets = (filters: TimesheetFilters) => {
 
         // Se ci sono ore di permesso, crea un'entry separata
         if (item.permits_hours !== null && item.permits_hours > 0) {
-          
+
           const permitEntry: TimesheetEntry = {
             id: `${item.id}`,
             userId: filters.employeeId,
@@ -94,7 +94,7 @@ export const useTimesheets = (filters: TimesheetFilters) => {
             illness: false,
             holiday: false,
           };
-          
+
           return [permitEntry];
         }
 
@@ -115,8 +115,10 @@ export const useTimesheets = (filters: TimesheetFilters) => {
   }, [loadTimesheets]);
 
   const addTimesheet = useCallback(async (entry: {
-    projectId: string | null;
-    date: string;
+    projectId: number | null;
+    project_id?: number | null;
+    date?: string;
+    day?: string;
     hours: number;
     entry_type: EntryType;
     description?: string;
@@ -125,27 +127,66 @@ export const useTimesheets = (filters: TimesheetFilters) => {
     holiday?: boolean;
   }) => {
     try {
-      const workHour = entry.entry_type === EntryType.WORK && entry.projectId ? [{
-        project: parseInt(entry.projectId),
-        customer: null,
-        hours: entry.hours
-      }] : [];
+      const day = entry.date ?? entry.day;
 
-      const timesheet: Timesheet = {
-        id: null,
-        day: entry.date,
-        employee: filters.employeeId,
-        worked_hours: workHour,
-        permits_hours: entry.permits_hours || 0,
-        illness: entry.illness || false,
-        holiday: entry.holiday || false
+      const permits = entry.permits_hours ?? 0;
+      const illness = entry.illness ?? false;
+      const holiday = entry.holiday ?? false;
+
+      const hasNoWorkedHours = permits > 0 || illness || holiday;
+
+      const newWorkHour: WorkHour | null = hasNoWorkedHours
+        ? null
+        : {
+          project: entry.project_id ?? entry.projectId,
+          customer: null,
+          hours: entry.hours,
+        };
+
+      const existing = await TimesheetsService.getTimesheet(day);
+
+      // Se non esiste -> CREATE
+      if (!existing) {
+        const payload: Timesheet = {
+          day,
+          employee: filters.employeeId,
+          worked_hours: newWorkHour ? [newWorkHour] : [],
+          permits_hours: illness || holiday ? 0 : permits,
+          illness,
+          holiday,
+        };
+
+        const created = await TimesheetsService.createTimesheet(payload);
+        if (!created) throw new Error('Timesheet not created');
+        return;
+      }
+
+      // Se esiste -> UPDATE
+      const next: Timesheet = {
+        ...existing,
+        illness,
+        holiday,
       };
 
-      await TimesheetsService.createTimesheet(timesheet);
-      
+      // Se illness/holiday => azzera tutto
+      if (illness || holiday) {
+        next.permits_hours = 0;
+        next.worked_hours = [];
+      } else {
+        // Se permits > 0 => set permits
+        if (permits > 0) next.permits_hours = permits;
+
+        // Se c’è una workHour nuova => append
+        if (newWorkHour) {
+          next.worked_hours = [...(existing.worked_hours ?? []), newWorkHour];
+        }
+      }
+
+      await TimesheetsService.updateTimesheet(next);
+
       // Ricarica i dati dopo l'aggiunta
       await loadTimesheets();
-      
+
       return { success: true };
     } catch (err) {
       console.error('Error adding timesheet:', err);
@@ -153,23 +194,37 @@ export const useTimesheets = (filters: TimesheetFilters) => {
     }
   }, [filters.employeeId, loadTimesheets]);
 
-  const deleteTimesheet = useCallback(async (id: number | string) => {
+  const deleteEntry = useCallback(async (entry: TimesheetEntry) => {
     try {
-      // Se l'ID contiene "-permit", è un'entry virtuale, non cancellare
-      if (typeof id === 'string' && id.includes('-permit')) {
-        console.log('Cannot delete virtual permit entry directly');
-        return { success: false, error: 'Impossibile cancellare entry di permesso separatamente' };
+      console.log('Deleting entry:', entry);
+      // Caso 1: è un timework (ha timesheet_id) -> cancello il timework
+      if (entry.timesheet_id) {
+        await TimesheetsService.deleteTimework(entry.id);
+        return { success: true };
       }
 
-      await TimesheetsService.deleteTimesheet(id as number);
-      
-      // Ricarica i dati dopo la cancellazione
-      await loadTimesheets();
-      
+      // Caso 2: non è PERMIT -> cancello direttamente il timesheet
+      if (entry.entry_type !== EntryType.PERMIT) {
+        await TimesheetsService.deleteTimesheet(entry.id);
+        return { success: true };
+      }
+
+      // Caso 3: è PERMIT (ma non timework)
+      const date = entry.date ?? entry.day;
+      const existingTimesheet = await TimesheetsService.getTimesheet(date);
+
+      if (existingTimesheet?.worked_hours?.length > 0) {
+        existingTimesheet.permits_hours = 0;
+        await TimesheetsService.updateTimesheet(existingTimesheet);
+        return { success: true };
+      }
+
+      await TimesheetsService.deleteTimesheet(entry.id);
+
       return { success: true };
-    } catch (err) {
-      console.error('Error deleting timesheet:', err);
-      return { success: false, error: 'Errore durante la cancellazione' };
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      throw error;
     }
   }, [loadTimesheets]);
 
@@ -178,10 +233,10 @@ export const useTimesheets = (filters: TimesheetFilters) => {
   ) => {
     try {
       await TimesheetsService.updateTimesheet(timesheet);
-      
+
       // Ricarica i dati dopo l'aggiornamento
       await loadTimesheets();
-      
+
       return { success: true };
     } catch (err) {
       console.error('Error updating timesheet:', err);
@@ -195,7 +250,7 @@ export const useTimesheets = (filters: TimesheetFilters) => {
     error,
     reload: loadTimesheets,
     addTimesheet,
-    deleteTimesheet,
+    deleteTimesheet: deleteEntry,
     updateTimesheet,
   };
 };

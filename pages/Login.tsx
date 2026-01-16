@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { Lock, User } from 'lucide-react';
 
 interface LoginProps {
-  onNavigate?: (page: 'login' | 'register' | 'forgot-password') => void;
+  onNavigate?: (page: 'login' | 'forgot-password') => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
@@ -103,18 +103,6 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? 'Accesso in corso...' : 'Accedi'}
             </Button>
-
-            {onNavigate && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('register')}
-                  className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Non hai un account? <span className="text-blue-600 hover:text-blue-700 font-medium">Registrati</span>
-                </button>
-              </div>
-            )}
           </form>
         </div>
         <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 text-center">

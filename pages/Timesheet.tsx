@@ -26,6 +26,7 @@ export const Timesheet: React.FC = () => {
     timesheets, 
     loading, 
     error,
+    reload,
     addTimesheet, 
     deleteTimesheet 
   } = useTimesheets({
@@ -255,11 +256,13 @@ export const Timesheet: React.FC = () => {
     }
   };
 
-  const handleDeleteEntry = async (id: number | string) => {
-    const result = await deleteTimesheet(id);
+  const handleDeleteEntry = async (entry) => {
+    const result = await deleteTimesheet(entry);
     if (!result.success && result.error) {
       alert(result.error);
     }
+    // Ricarica i timesheets dopo aver cancellato
+    await reload(user.id);
   };
 
   // Mostra loading indicator
@@ -386,16 +389,16 @@ export const Timesheet: React.FC = () => {
                         return (
                           <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm active:shadow-md transition-shadow touch-manipulation">
                              <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                             <div className="pl-2">
+                             <div className={`${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"} pl-2 gap-2`}>
                                  <div className="flex items-center gap-2">
                                    <Icon size={14} style={{ color: config.color }} />
                                    <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
                                  </div>
                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                                 <div className="mt-2 flex justify-between items-center">  
+                                 <div className="flex justify-between items-center">  
                                       {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                      <button 
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
                                          <X size={16} />
                                      </button>
@@ -447,41 +450,41 @@ export const Timesheet: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Entries List */}
-                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
-                  {dayEntries.map(entry => {
-                    const project = projects.find(p => p.id === entry.projectId);
-                    const entryConfig = {
-                      [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                      [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                      [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                      [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                    };
-                    const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                    const Icon = config.icon;
-                    
-                    return (
-                      <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                         <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                         <div className="pl-2">
-                             <div className="flex items-center gap-2">
-                               <Icon size={12} style={{ color: config.color }} />
-                               <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
-                             </div>
-                             {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                             <div className="mt-2 flex justify-between items-center">
-                              {(entry.hours || entry.permits_hours) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
-                                 <button 
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}
-                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-                                     <X size={12} />
-                                 </button>
-                             </div>
-                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                  {/* Entries List */}
+                  <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                    {dayEntries.map(entry => {
+                      const project = projects.find(p => p.id === entry.projectId);
+                      const entryConfig = {
+                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                      };
+                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                      const Icon = config.icon;
+                      
+                      return (
+                        <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                           <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
+                           <div className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"}`}>
+                               <div className="flex items-center gap-2">
+                                 <Icon size={12} style={{ color: config.color }} />
+                                 <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                               </div>
+                               {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
+                               <div className="flex justify-between  ">
+                                {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+                                   <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
+                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+                                       <X size={12} />
+                                   </button>
+                               </div>
+                           </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
                 {/* Add Button */}
                 <button 

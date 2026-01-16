@@ -8,7 +8,7 @@ export interface WorkHour {
 }
 
 export interface Timesheet {
-    id: number,
+    id?: number,
     day: string,
     employee: number,
     worked_hours?: WorkHour[],
@@ -68,38 +68,36 @@ export class TimesheetsService {
         }
     }
 
+    static async getTimesheet(day: string): Promise<any> {
+        const token = AuthService.getAccessToken();
+
+        if (!token) return null;
+
+        try {
+            
+            const url = new URL(`${backendUrl}/api/timesheets/`);
+            if (day != null) {
+                url.searchParams.set('day', String(day));
+            }
+            const response = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const data = await response.json();
+            return data[0];
+        } catch (error) {
+            console.error('Error fetching timesheet:', error);
+            return null;
+        }
+    }
+
     static async createTimesheet(timesheet: Timesheet): Promise<Timesheet | null> {
         const token = AuthService.getAccessToken();
         if (!token) return null;
 
         try {
-            const url = new URL(`${backendUrl}/api/timesheets/`);
-            if (timesheet.day != null) {
-                url.searchParams.set('day', String(timesheet.day));
-            }
-            const responseExistingTimesheet = await fetch(url.toString(), {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-            const data = await responseExistingTimesheet.json();
-            const existingTimesheet = data[0]
-            if (existingTimesheet) {
-                if (timesheet.worked_hours[0]) {
-                    existingTimesheet.worked_hours.push(timesheet.worked_hours[0])
-                }
-                if (timesheet.permits_hours > 0) {
-                    existingTimesheet.permits_hours = timesheet.permits_hours
-                }
-                if (timesheet.holiday || timesheet.illness) {
-                    existingTimesheet.permits_hours = 0;
-                    existingTimesheet.worked_hours = [];
-                }
-                existingTimesheet.holiday = timesheet.holiday;
-                existingTimesheet.illness = timesheet.illness;
-
-                return this.updateTimesheet(existingTimesheet);
-            }
+            
             const response = await fetch(`${backendUrl}/api/timesheets/`, {
                 method: 'POST',
                 headers: {
@@ -169,32 +167,38 @@ export class TimesheetsService {
         }
     }
 
-    static async deleteTimesheet(id: number): Promise<boolean> {
+    static async deleteTimesheet(id: number | string): Promise<boolean> {
         const token = AuthService.getAccessToken();
         if (!token) return false;
 
+        if (!id) {
+            console.error('deleteTimesheet: missing id');
+            return false;
+        }
+
         try {
             const response = await fetch(
-                `${backendUrl}/api/timesheets/${id}`,
-                {
-                    method: 'DELETE',
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
+            `${backendUrl}/api/timesheets/${id}`,
+            {
+                method: 'DELETE',
+                headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+                },
+            }
             );
 
             if (!response.ok) {
-                const text = await response.text().catch(() => '');
-                console.error(
-                    'Timesheet deletion failed',
-                    response.status,
-                    text
-                );
-                return false;
+            const text = await response.text().catch(() => '');
+            console.error(
+                'Timesheet delete failed',
+                response.status,
+                text
+            );
+            return false;
             }
 
-            console.log('Timesheet successfully deleted');
+            console.log('Timesheet successfully deleted', id);
             return true;
 
         } catch (error) {
@@ -202,5 +206,46 @@ export class TimesheetsService {
             return false;
         }
     }
+
+    static async deleteTimework(id: number | string): Promise<boolean> {
+        const token = AuthService.getAccessToken();
+        if (!token) return false;
+
+        if (!id) {
+            console.error('delete Timework: missing id');
+            return false;
+        }
+
+        try {
+            const response = await fetch(
+            `${backendUrl}/api/timesheets/timeworks/${id}`,
+            {
+                method: 'DELETE',
+                headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+                },
+            }
+            );
+
+            if (!response.ok) {
+            const text = await response.text().catch(() => '');
+            console.error(
+                'Timework delete failed',
+                response.status,
+                text
+            );
+            return false;
+            }
+
+            console.log('Timework successfully deleted', id);
+            return true;
+
+        } catch (error) {
+            console.error('Error deleting Timework:', error);
+            return false;
+        }
+    }
+
 
 }
