@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Client, Project, TimesheetEntry, AppState } from '../types';
+import { User, Client, Project, TimesheetEntry, AppState, EntryType } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
 import { AuthService } from '@/services/auth';
@@ -15,7 +15,6 @@ interface StoreContextType extends AppState {
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   addEntry: (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => Promise<void>;
-  updateEntry: (entry: TimesheetEntry) => Promise<void>;
   deleteEntry: (id: number) => Promise<void>;
   addProject: (project: Omit<Project, 'id'>) => Promise<void>;
   updateProject: (project: Project) => Promise<void>;
@@ -398,151 +397,105 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addEntry = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
+  const addEntry = async (
+    entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>
+  ) => {
     if (!user?.employee_id) return;
+
     try {
-      const date = entry.date || entry.day;
-      const hasNoWorkedHours =
-        entry.permits_hours > 0 ||
-        entry.illness === true ||
-        entry.holiday === true;
+      const day = entry.date ?? entry.day;
 
-      const workHour: WorkHour[] = hasNoWorkedHours
-        ? []
-        : [
-            {
-              project: entry.project_id ?? entry.projectId,
-              customer: null,
-              hours: entry.hours,
-            },
-          ];
+      const permits = entry.permits_hours ?? 0;
+      const illness = entry.illness ?? false;
+      const holiday = entry.holiday ?? false;
 
-      const timesheet : Timesheet = {
-          id: null,
-          day: date,
+      const hasNoWorkedHours = permits > 0 || illness || holiday;
+
+      const newWorkHour: WorkHour | null = hasNoWorkedHours
+        ? null
+        : {
+            project: entry.project_id ?? entry.projectId,
+            customer: null,
+            hours: entry.hours,
+          };
+
+      const existing = await TimesheetsService.getTimesheet(day);
+
+      // Se non esiste -> CREATE
+      if (!existing) {
+        const payload: Timesheet = {
+          day,
           employee: user.employee_id,
-          worked_hours: workHour,
-          permits_hours: entry.permits_hours || 0,
-          illness: entry.illness || false,
-          holiday: entry.holiday || false
+          worked_hours: newWorkHour ? [newWorkHour] : [],
+          permits_hours: illness || holiday ? 0 : permits,
+          illness,
+          holiday,
         };
 
-      const newTimesheet = await TimesheetsService.createTimesheet(timesheet);
-      console.log("newTimesheet", newTimesheet)
-      if (!newTimesheet) {
-        throw new Error('newTimesheet not create');
+        const created = await TimesheetsService.createTimesheet(payload);
+        if (!created) throw new Error('Timesheet not created');
+        return;
       }
 
-    } catch (error) {
-      console.error('Error adding entry:', error);
-      throw error;
-    }
-  };
+      // Se esiste -> UPDATE
+      const next: Timesheet = {
+        ...existing,
+        illness,
+        holiday,
+      };
 
-  const addEntryOld = async (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => {
-    if (!user?.employee_id) return;
-
-    try {
-      const date = entry.date || entry.day;
-
-      // First, ensure timesheet exists for this day
-      const { data: existingTimesheet, error: tsCheckError } = await supabase
-        .from('timesheets_timesheet')
-        .select('id')
-        .eq('employee_id', user.employee_id)
-        .eq('day', date)
-        .single();
-
-      let timesheetId: number;
-
-      if (tsCheckError || !existingTimesheet) {
-        // Create new timesheet for this day
-        const { data: newTimesheet, error: tsError } = await supabase
-          .from('timesheets_timesheet')
-          .insert({
-            employee_id: user.employee_id,
-            day: date,
-            permits_hours: entry.permits_hours || 0,
-            illness: entry.illness || false,
-            holiday: entry.holiday || false,
-          })
-          .select()
-          .single();
-
-        if (tsError) throw tsError;
-        timesheetId = newTimesheet.id;
+      // Se illness/holiday => azzera tutto
+      if (illness || holiday) {
+        next.permits_hours = 0;
+        next.worked_hours = [];
       } else {
-        timesheetId = existingTimesheet.id;
+        // Se permits > 0 => set permits
+        if (permits > 0) next.permits_hours = permits;
+
+        // Se c’è una workHour nuova => append
+        if (newWorkHour) {
+          next.worked_hours = [...(existing.worked_hours ?? []), newWorkHour];
+        }
       }
 
-      // Now create the timework entry
-      const { data, error } = await supabase
-        .from('timesheets_timework')
-        .insert({
-          timesheet_id: timesheetId,
-          project_id: entry.project_id || entry.projectId,
-          hours: entry.hours,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Reload entries to get updated list
-      await loadEntries(user.employee_id, user.is_staff);
+      await TimesheetsService.updateTimesheet(next);
     } catch (error) {
       console.error('Error adding entry:', error);
       throw error;
     }
   };
 
-  const updateEntry = async (entry: TimesheetEntry) => {
+  const deleteEntry = async (entry: TimesheetEntry) => {
     try {
-      // Update timework
-      const { error: twError } = await supabase
-        .from('timesheets_timework')
-        .update({
-          hours: entry.hours,
-          project_id: entry.project_id,
-        })
-        .eq('id', entry.id);
+      // Caso 1: è un timework (ha timesheet_id) -> cancello il timework
+      if (entry.timesheet_id) {
+        await TimesheetsService.deleteTimework(entry.id);
+        return;
+      }
 
-      if (twError) throw twError;
+      // Caso 2: non è PERMIT -> cancello direttamente il timesheet
+      if (entry.entry_type !== EntryType.PERMIT) {
+        await TimesheetsService.deleteTimesheet(entry.id);
+        return;
+      }
 
-      // Update timesheet if needed
-      const { error: tsError } = await supabase
-        .from('timesheets_timesheet')
-        .update({
-          permits_hours: entry.permits_hours || 0,
-          illness: entry.illness || false,
-          holiday: entry.holiday || false,
-        })
-        .eq('id', entry.timesheet_id);
+      // Caso 3: è PERMIT (ma non timework)
+      const date = entry.date ?? entry.day;
+      const existingTimesheet = await TimesheetsService.getTimesheet(date);
 
-      if (tsError) throw tsError;
+      if (existingTimesheet?.worked_hours?.length > 0) {
+        existingTimesheet.permits_hours = 0;
+        await TimesheetsService.updateTimesheet(existingTimesheet);
+        return;
+      }
 
-      setEntries(prev => prev.map(e => e.id === entry.id ? entry : e));
-    } catch (error) {
-      console.error('Error updating entry:', error);
-      throw error;
-    }
-  };
-
-  const deleteEntry = async (id: number) => {
-    try {
-      const { error } = await supabase
-        .from('timesheets_timework')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setEntries(prev => prev.filter(e => e.id !== id));
+      await TimesheetsService.deleteTimesheet(entry.id);
     } catch (error) {
       console.error('Error deleting entry:', error);
       throw error;
     }
   };
+
 
   const addProject = async (project: Omit<Project, 'id'>) => {
     try {
@@ -618,7 +571,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       resetPassword,
       updatePassword,
       addEntry,
-      updateEntry,
       deleteEntry,
       addProject,
       updateProject,

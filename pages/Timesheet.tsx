@@ -307,6 +307,17 @@ export const Timesheet: React.FC = () => {
     }
   };
 
+  const handleDeleteEntry = async (entry: TimesheetEntry) => {
+    if (!user) return;
+    try {
+        await deleteEntry(entry);
+        // Ricarica i timesheets dopo aver cancellato
+        await loadTimesheets(user.id);
+    } catch (error) {
+      console.error("Errore cancellazione:", error);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -419,7 +430,7 @@ export const Timesheet: React.FC = () => {
                                  <div className="flex justify-between items-center">  
                                       {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                      <button 
-                                      onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
                                       className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
                                          <X size={16} />
                                      </button>
@@ -496,7 +507,7 @@ export const Timesheet: React.FC = () => {
                                <div className="flex justify-between  ">
                                 {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
                                    <button 
-                                    onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
                                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
                                        <X size={12} />
                                    </button>
