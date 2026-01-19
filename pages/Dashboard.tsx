@@ -53,7 +53,7 @@ export const Dashboard: React.FC = () => {
       const entriesData = data.flatMap((item: any) => {
         const baseEntry = {
           id: item.id,
-          userId: item.employee?.user_id || employeeId,
+          userId: item.employee_id,
           projectId: item.project_id,
           date: item.day,
           hours: item.hours || 0,
@@ -67,7 +67,7 @@ export const Dashboard: React.FC = () => {
         if (item.permits_hours !== null && item.permits_hours > 0) {
           entries.push({
             id: `${item.id}-permit`, // ID univoco per l'entry del permesso
-            userId: item.employee?.user_id || employeeId,
+            userId: item.employee_id,
             projectId: item.project_id,
             date: item.day,
             hours: item.permits_hours,
