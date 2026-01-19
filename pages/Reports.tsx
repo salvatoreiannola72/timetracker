@@ -31,11 +31,19 @@ export const Reports: React.FC = () => {
   const loadTimesheets = async (month?: number, year?: number) => {
       const data = await TimesheetsService.getTimesheetEntries(undefined, month, year, true);
       const timesheets: any[] = data?.flatMap((item: any, index: number) => {
+        const entryType =
+          (item.permits_hours ?? 0) > 0
+            ? EntryType.PERMIT
+            : item.illness === true
+              ? EntryType.SICK_LEAVE
+              : item.holiday === true
+                ? EntryType.VACATION
+                : EntryType.WORK;
         let timesheet = {
             userId: item.employee ?? item.employee_id,
             user_id: item.employee ?? item.employee_id,
             projectId: item.project_id,
-            entry_type: EntryType.WORK,
+            entry_type: entryType,
             date: item.day,
             ...item
           }
@@ -120,18 +128,19 @@ export const Reports: React.FC = () => {
 
     filteredEntries.forEach(entry => {
       if (!data[entry.userId]) return; // Should not happen
-      
-      const project = projects.find(p => p.id === entry.projectId);
-      const projId = entry.projectId;
-      const projName = project?.name || 'Unknown';
-      const projColor = '#3b82f6'; // Use default blue
+      if(entry.entry_type === EntryType.WORK){
+        const project = projects.find(p => p.id === entry.projectId);
+        const projId = entry.projectId;
+        const projName = project?.name || 'Unknown';
+        const projColor = '#3b82f6'; // Use default blue
 
-      data[entry.userId].totalHours += entry.hours;
-      
-      if (!data[entry.userId].projects[projId]) {
-          data[entry.userId].projects[projId] = { name: projName, hours: 0, color: projColor };
+        data[entry.userId].totalHours += entry.hours;
+        
+        if (!data[entry.userId].projects[projId]) {
+            data[entry.userId].projects[projId] = { name: projName, hours: 0, color: projColor };
+        }
+        data[entry.userId].projects[projId].hours += entry.hours;
       }
-      data[entry.userId].projects[projId].hours += entry.hours;
     });
 
     return Object.values(data)
