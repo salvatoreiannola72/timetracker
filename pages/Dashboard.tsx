@@ -1,19 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useStore } from '../context/Store';
-import { Role } from '../types';
+import { EntryType, Role, TimesheetEntry } from '../types';
 import { Card, CardContent, CardHeader } from '../components/Card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Clock, Briefcase, TrendingUp, Calendar, Users, Umbrella, Stethoscope, Clock as PermitIcon } from 'lucide-react';
 import { COLORS } from '../constants';
+import { TimesheetsService } from '@/services/timesheets';
 
 type ViewType = 'monthly' | 'yearly';
 type DisplayUnit = 'hours' | 'days';
 const HOURS_PER_DAY = 8;
 
 export const Dashboard: React.FC = () => {
-  const { user, entries, projects, users } = useStore();
+  const { user, projects, users } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('hours');
+  const [entries, setEntries] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     return {
@@ -22,24 +24,78 @@ export const Dashboard: React.FC = () => {
     };
   });
 
-  // Filter entries based on selected period
-  const filteredEntries = useMemo(() => {
-    const relevantEntries = user?.is_staff 
-      ? entries 
-      : entries.filter(e => e.userId === user?.id);
+  const getEntryType = (item: any): EntryType => {
+    if (item.holiday) return EntryType.VACATION;
+    if (item.illness) return EntryType.SICK_LEAVE;
+    if (item.permits_hours && item.permits_hours > 0 && (!item.hours || item.hours === 0)) {
+      return EntryType.PERMIT;
+    }
+    return EntryType.WORK;
+  };
 
-    return relevantEntries.filter(entry => {
-      const entryDate = new Date(entry.date);
-      const entryYear = entryDate.getFullYear();
-      const entryMonth = entryDate.getMonth() + 1;
+  const loadEntries = async (employeeId?: number, isAdmin: boolean = false, month?: number, year?: number) => {
+    if (!employeeId && !isAdmin) return;
 
-      if (viewType === 'yearly') {
-        return entryYear === selectedDate.year;
-      } else {
-        return entryYear === selectedDate.year && entryMonth === selectedDate.month;
+    try {
+      // Per admin carichiamo tutte le entries, per utenti normali solo le proprie
+      const data = await TimesheetsService.getTimesheetEntries(
+        undefined,
+        month, // month - undefined per caricare tutti i mesi
+        year,  // year - undefined per caricare tutti gli anni
+        true
+      );
+
+      if (!data) {
+        setEntries([]);
+        return;
       }
-    });
-  }, [entries, user, viewType, selectedDate]);
+
+      const entriesData = data.flatMap((item: any) => {
+        const baseEntry = {
+          id: item.id,
+          userId: item.employee?.user_id || employeeId,
+          projectId: item.project_id,
+          date: item.day,
+          hours: item.hours || 0,
+          description: item.description || '',
+          entry_type: getEntryType(item),
+        };
+
+        const entries = [];
+
+        // Entry separata per i permessi (se presenti)
+        if (item.permits_hours !== null && item.permits_hours > 0) {
+          entries.push({
+            id: `${item.id}-permit`, // ID univoco per l'entry del permesso
+            userId: item.employee?.user_id || employeeId,
+            projectId: item.project_id,
+            date: item.day,
+            hours: item.permits_hours,
+            description: baseEntry.description,
+            entry_type: EntryType.PERMIT
+          });
+        } else {
+          entries.push(baseEntry);
+        }
+
+        return entries;
+      });
+
+      setEntries(entriesData);
+    } catch (error) {
+      console.error('Error loading entries:', error);
+      setEntries([]);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const month = viewType === 'monthly' ? selectedDate.month : undefined;
+      const year = selectedDate.year;
+      
+      loadEntries(user.id, user.is_staff, month, year);
+    }
+  }, [user, viewType, selectedDate]);
 
   // Helper function to convert hours to display unit
   const convertToDisplayUnit = (hours: number): number => {
@@ -56,13 +112,13 @@ export const Dashboard: React.FC = () => {
 
   // Compute KPIs
   const kpis = useMemo(() => {
-    const totalHours = filteredEntries.reduce((acc, curr) => acc + curr.hours, 0);
-    const activeProjectCount = new Set(filteredEntries.map(e => e.projectId)).size;
-    const activeUsersCount = new Set(filteredEntries.map(e => e.userId)).size;
-    
+    const totalHours = entries.reduce((acc, curr) => acc + curr.hours, 0);
+    const activeProjectCount = new Set(entries.map(e => e.projectId)).size;
+    const activeUsersCount = new Set(entries.map(e => e.userId)).size;
+
     // Chart Data: Hours per Project
     const projectHours: Record<string, number> = {};
-    filteredEntries.forEach(e => {
+    entries.forEach(e => {
       const pName = projects.find(p => p.id === e.projectId)?.name || 'Unknown';
       projectHours[pName] = (projectHours[pName] || 0) + e.hours;
     });
@@ -73,14 +129,14 @@ export const Dashboard: React.FC = () => {
 
     // Trend data based on view type
     let trendData: { label: string; hours: number }[] = [];
-    
+
     if (viewType === 'monthly') {
       // Days in selected month
       const daysInMonth = new Date(selectedDate.year, selectedDate.month, 0).getDate();
       trendData = Array.from({ length: daysInMonth }, (_, i) => {
         const day = i + 1;
         const dateStr = `${selectedDate.year}-${String(selectedDate.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const hours = filteredEntries
+        const hours = entries
           .filter(e => e.date === dateStr)
           .reduce((sum, e) => sum + e.hours, 0);
         return { label: String(day), hours };
@@ -90,7 +146,7 @@ export const Dashboard: React.FC = () => {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       trendData = Array.from({ length: 12 }, (_, i) => {
         const month = i + 1;
-        const hours = filteredEntries
+        const hours = entries
           .filter(e => {
             const entryDate = new Date(e.date);
             return entryDate.getMonth() + 1 === month;
@@ -100,23 +156,23 @@ export const Dashboard: React.FC = () => {
       });
     }
 
-    const daysInPeriod = viewType === 'monthly' 
+    const daysInPeriod = viewType === 'monthly'
       ? new Date(selectedDate.year, selectedDate.month, 0).getDate()
       : 365;
-    
+
     const avgDailyHours = totalHours / daysInPeriod;
 
-    return { 
-      totalHours, 
-      activeProjectCount, 
+    return {
+      totalHours,
+      activeProjectCount,
       activeUsersCount,
-      chartData, 
+      chartData,
       trendData,
       avgDailyHours
     };
-  }, [filteredEntries, projects, viewType, selectedDate]);
+  }, [entries, projects, viewType, selectedDate]);
 
- const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
+  const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
     <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
       <div className="p-6 flex items-center justify-between">
         <div className="flex-1">
@@ -135,12 +191,12 @@ export const Dashboard: React.FC = () => {
   const LeaveCard = ({ title, used, total, icon: Icon, color, bgColor }: any) => {
     const remaining = total - used;
     const percentage = (used / total) * 100;
-    
+
     // Color based on usage
     let barColor = '#10b981'; // green
     if (percentage > 80) barColor = '#ef4444'; // red
     else if (percentage > 50) barColor = '#f59e0b'; // yellow
-    
+
     return (
       <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
         <div className="p-4">
@@ -156,7 +212,7 @@ export const Dashboard: React.FC = () => {
               <Icon size={22} strokeWidth={2} style={{ color }} />
             </div>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="space-y-0.5">
             <div className="flex justify-between text-xs text-slate-500">
@@ -164,9 +220,9 @@ export const Dashboard: React.FC = () => {
               <span>{percentage.toFixed(0)}%</span>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full transition-all duration-300 rounded-full"
-                style={{ 
+                style={{
                   width: `${Math.min(percentage, 100)}%`,
                   backgroundColor: barColor
                 }}
@@ -217,8 +273,8 @@ export const Dashboard: React.FC = () => {
         const displayValue = convertToDisplayUnit(entry.payload.value);
         return (
           <div key={`legend-${index}`} className="flex items-center gap-2">
-            <div 
-              className="w-3 h-3 rounded-full" 
+            <div
+              className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-sm text-slate-700 font-medium">
@@ -237,27 +293,25 @@ export const Dashboard: React.FC = () => {
         <h1 className="text-3xl font-bold text-slate-900">
           {user?.is_staff ? 'Admin Dashboard' : 'Dashboard Personale'}
         </h1>
-        
+
         <div className="flex flex-wrap items-center gap-3">
           {/* Display Unit Toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
             <button
               onClick={() => setDisplayUnit('hours')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                displayUnit === 'hours'
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${displayUnit === 'hours'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Ore
             </button>
             <button
               onClick={() => setDisplayUnit('days')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                displayUnit === 'days'
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${displayUnit === 'days'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Giorni
             </button>
@@ -267,21 +321,19 @@ export const Dashboard: React.FC = () => {
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
             <button
               onClick={() => setViewType('monthly')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewType === 'monthly'
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'monthly'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Mensile
             </button>
             <button
               onClick={() => setViewType('yearly')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewType === 'yearly'
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'yearly'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Annuale
             </button>
@@ -317,7 +369,7 @@ export const Dashboard: React.FC = () => {
       <div className="flex items-center gap-2 text-sm text-slate-600">
         <Calendar size={16} />
         <span className="font-medium">
-          Periodo visualizzato: {viewType === 'monthly' 
+          Periodo visualizzato: {viewType === 'monthly'
             ? `${months[selectedDate.month - 1].label} ${selectedDate.year}`
             : `Anno ${selectedDate.year}`
           }
@@ -326,34 +378,34 @@ export const Dashboard: React.FC = () => {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
+        <StatCard
           title={displayUnit === 'hours' ? 'Ore Totali' : 'Giorni Totali'}
           value={getUnitLabel(convertToDisplayUnit(kpis.totalHours), true)}
-          subtitle={`${filteredEntries.length} registrazioni`}
-          icon={Clock} 
-          color="#3b82f6" 
+          subtitle={`${entries.length} registrazioni`}
+          icon={Clock}
+          color="#3b82f6"
         />
-        <StatCard 
-          title="Progetti Attivi" 
+        <StatCard
+          title="Progetti Attivi"
           value={kpis.activeProjectCount}
           subtitle={`${projects.length} totali`}
-          icon={Briefcase} 
-          color="#10b981" 
+          icon={Briefcase}
+          color="#10b981"
         />
-        <StatCard 
-          title="Media Giornaliera" 
+        <StatCard
+          title="Media Giornaliera"
           value={getUnitLabel(convertToDisplayUnit(kpis.avgDailyHours), true)}
           subtitle={viewType === 'monthly' ? 'per giorno' : 'per giorno'}
-          icon={TrendingUp} 
-          color="#f59e0b" 
+          icon={TrendingUp}
+          color="#f59e0b"
         />
         {user?.is_staff && (
-          <StatCard 
-            title="Collaboratori Attivi" 
+          <StatCard
+            title="Collaboratori Attivi"
             value={kpis.activeUsersCount}
             subtitle={`${users.length} totali`}
-            icon={Users} 
-            color="#8b5cf6" 
+            icon={Users}
+            color="#8b5cf6"
           />
         )}
       </div>
@@ -409,18 +461,18 @@ export const Dashboard: React.FC = () => {
                     dataKey="value"
                   >
                     {kpis.chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
                         stroke="#fff"
                         strokeWidth={2}
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '8px', 
-                      border: 'none', 
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
                       boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                       padding: '12px'
                     }}
@@ -452,37 +504,37 @@ export const Dashboard: React.FC = () => {
           <CardContent className="h-[440px]">
             {kpis.trendData.some(d => d.hours > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={kpis.trendData.map(d => ({ 
-                    ...d, 
-                    displayValue: convertToDisplayUnit(d.hours) 
-                  }))} 
+                <BarChart
+                  data={kpis.trendData.map(d => ({
+                    ...d,
+                    displayValue: convertToDisplayUnit(d.hours)
+                  }))}
                   margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
                 >
-                  <XAxis 
-                    dataKey="label" 
-                    fontSize={12} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="label"
+                    fontSize={12}
+                    tickLine={false}
                     axisLine={{ stroke: '#e2e8f0' }}
                     tick={{ fill: '#64748b' }}
                   />
-                  <YAxis 
-                    fontSize={12} 
-                    tickLine={false} 
+                  <YAxis
+                    fontSize={12}
+                    tickLine={false}
                     axisLine={{ stroke: '#e2e8f0' }}
                     tick={{ fill: '#64748b' }}
-                    label={{ 
-                      value: displayUnit === 'hours' ? 'Ore' : 'Giorni', 
-                      angle: -90, 
+                    label={{
+                      value: displayUnit === 'hours' ? 'Ore' : 'Giorni',
+                      angle: -90,
                       position: 'insideLeft',
                       style: { fill: '#64748b', fontSize: 12 }
                     }}
                   />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="displayValue" 
-                    fill="#3b82f6" 
-                    radius={[6, 6, 0, 0]} 
+                  <Bar
+                    dataKey="displayValue"
+                    fill="#3b82f6"
+                    radius={[6, 6, 0, 0]}
                     barSize={viewType === 'monthly' ? 20 : 32}
                   />
                 </BarChart>
@@ -508,7 +560,7 @@ export const Dashboard: React.FC = () => {
               const vacationPercentage = ((teamMember.vacation_days_used || 0) / (teamMember.vacation_days_total || 22)) * 100;
               const sickPercentage = ((teamMember.sick_days_used || 0) / (teamMember.sick_days_total || 180)) * 100;
               const permitPercentage = ((teamMember.permit_hours_used || 0) / (teamMember.permit_hours_total || 32)) * 100;
-              
+
               return (
                 <Card key={teamMember.id} className="hover:shadow-lg transition-shadow">
                   <div className="p-5">
@@ -545,9 +597,9 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full transition-all duration-300 rounded-full"
-                            style={{ 
+                            style={{
                               width: `${Math.min(vacationPercentage, 100)}%`,
                               backgroundColor: vacationPercentage > 80 ? '#ef4444' : vacationPercentage > 50 ? '#f59e0b' : '#10b981'
                             }}
@@ -573,9 +625,9 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full transition-all duration-300 rounded-full"
-                            style={{ 
+                            style={{
                               width: `${Math.min(sickPercentage, 100)}%`,
                               backgroundColor: sickPercentage > 80 ? '#ef4444' : sickPercentage > 50 ? '#f59e0b' : '#10b981'
                             }}
@@ -601,9 +653,9 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full transition-all duration-300 rounded-full"
-                            style={{ 
+                            style={{
                               width: `${Math.min(permitPercentage, 100)}%`,
                               backgroundColor: permitPercentage > 80 ? '#ef4444' : permitPercentage > 50 ? '#f59e0b' : '#10b981'
                             }}
