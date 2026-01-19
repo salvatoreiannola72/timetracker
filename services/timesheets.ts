@@ -19,7 +19,7 @@ export interface Timesheet {
 
 export class TimesheetsService {
 
-    static async getTimesheetEntries(employeeId: number, month?: number, year?: number): Promise<any> {
+    static async getTimesheetEntries(employeeId?: number, month?: number, year?: number, all_users?: boolean): Promise<any> {
         const token = AuthService.getAccessToken();
 
         if (!token) return null;
@@ -35,6 +35,9 @@ export class TimesheetsService {
             }
             if (year != null) {
                 url.searchParams.set('year', String(year));
+            }
+            if (all_users) {
+                url.searchParams.set('all_users', String(all_users));
             }
 
             const response = await fetch(url.toString(), {
@@ -53,6 +56,9 @@ export class TimesheetsService {
             if (year != null) {
                 noWorkedHoursUrl.searchParams.set('year', String(year));
             }
+            if (all_users) {
+                noWorkedHoursUrl.searchParams.set('all_users', String(all_users));
+            }
             noWorkedHoursUrl.searchParams.set('no_worked_hours', 'true');
             const noWorkedHoursResponse = await fetch(noWorkedHoursUrl.toString(), {
                 headers: {
@@ -61,6 +67,8 @@ export class TimesheetsService {
             });
             const noWorkedHoursData = await noWorkedHoursResponse.json();
             const data = await response.json();
+            console.log("data", data)
+            console.log("noWorkedHoursData", noWorkedHoursData)
             return [...data, ...noWorkedHoursData];
         } catch (error) {
             console.error('Error fetching timesheet entries:', error);

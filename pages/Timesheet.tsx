@@ -44,22 +44,6 @@ export const Timesheet: React.FC = () => {
         entry_type: getEntryType(item),
         ...item
       }
-      //in caso di permesso rimuovo type dall'originale e creo entry per le ore di permesso
-      if (item.permits_hours !== null && item.permits_hours > 0) {
-        timesheet.entry_type = EntryType.WORK
-        const clonedTimesheet = {
-          id: `${timesheet.id}`,
-          userId: user.id,
-          user_id: user.id,
-          permits_hours: item.permits_hours,
-          hours: 0,
-          date : item.day,
-          entry_type: EntryType.PERMIT
-         
-        };
-        return [clonedTimesheet];
-      }
-      
       return [timesheet];
     }) || [];
     setTimesheets(timesheets);

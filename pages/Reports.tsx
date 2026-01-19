@@ -1,16 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../context/Store';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
 import { Download, FileSpreadsheet, Building2, Users, FileText, Search, ChevronDown, ChevronUp, Calendar, Briefcase } from 'lucide-react';
 import { User, Project } from '../types';
 import * as XLSX from 'xlsx';
+import { EntryType, Timesheet as TimesheetEntry } from '../types';
+import { TimesheetsService } from '@/services/timesheets';
+
 
 type ViewMode = 'CLIENTS' | 'PROJECTS' | 'TEAM';
 type PeriodType = 'monthly' | 'yearly';
 
 export const Reports: React.FC = () => {
-  const { entries, projects, users, clients } = useStore();
+  const {projects, users, clients } = useStore();
   const [viewMode, setViewMode] = useState<ViewMode>('CLIENTS');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -23,9 +26,33 @@ export const Reports: React.FC = () => {
     };
   });
 
+  const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
+
+  const loadTimesheets = async (month?: number, year?: number) => {
+      const data = await TimesheetsService.getTimesheetEntries(undefined, month, year, true);
+      const timesheets: any[] = data?.flatMap((item: any, index: number) => {
+        let timesheet = {
+            userId: item.employee ?? item.employee_id,
+            user_id: item.employee ?? item.employee_id,
+            projectId: item.project_id,
+            entry_type: EntryType.WORK,
+            date: item.day,
+            ...item
+          }
+        return [timesheet];
+      }) || [];
+      console.log("timesheets: ", timesheets)
+      setTimesheets(timesheets);
+    }
+
+
+  useEffect(() => {
+    loadTimesheets(periodType == 'monthly' ? selectedDate.month : undefined, selectedDate.year);
+  }, [selectedDate.month, selectedDate.year, periodType]);
+
   // Filter entries based on selected period
   const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
+    return timesheets.filter(entry => {
       const entryDate = new Date(entry.date);
       const entryYear = entryDate.getFullYear();
       const entryMonth = entryDate.getMonth() + 1;
@@ -36,7 +63,7 @@ export const Reports: React.FC = () => {
         return entryYear === selectedDate.year && entryMonth === selectedDate.month;
       }
     });
-  }, [entries, periodType, selectedDate]);
+  }, [timesheets, periodType, selectedDate]);
 
   // --- Aggregation Logic ---
 
