@@ -539,7 +539,7 @@ export const Reports: React.FC = () => {
                         </div>
                         
                         {/* Expanded / Detailed View */}
-                        {(isExpanded || window.innerWidth >= 768) && (
+                        {(isExpanded) && (
                              <div className={`px-4 pb-6 sm:pl-[5rem] animate-in fade-in duration-200 ${!isExpanded ? 'hidden md:block' : 'block'}`}>
                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                      {Object.values(item.projects).map((proj: any, idx) => (
