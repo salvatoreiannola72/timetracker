@@ -53,11 +53,12 @@ export const Timesheet: React.FC = () => {
 
   useEffect(() => {
     if (user?.id) {
-      //const month = currentDate.getMonth() + 1; // getMonth() returns 0-11, quindi +1
-      //const year = currentDate.getFullYear();
-      loadTimesheets(user.id);
+      const month = currentDate.getMonth() + 1; // getMonth() returns 0-11, quindi +1
+      const year = currentDate.getFullYear();
+      console.log("Loading timesheets for:", month, year);
+      loadTimesheets(user.id, month, year);
     }
-  }, [user?.id]);
+  }, [user?.id, currentDate]);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -560,7 +561,6 @@ export const Timesheet: React.FC = () => {
                   <div className="space-y-0.5 sm:space-y-1">
                     {dayEntries.slice(0, 2).map(entry => {
                       const project = projects.find(p => p.id === entry.projectId);
-                      console.log(dayEntries)
                       const entryConfig = {
                         [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
                         [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
