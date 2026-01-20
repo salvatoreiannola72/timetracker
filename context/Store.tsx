@@ -104,8 +104,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await Promise.all([
         loadUsers(),
         loadClients(),
-        loadProjects(),
-        loadEntries(employee?.id, userProfile.is_staff)
+        loadProjects()
       ]);
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -170,44 +169,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         customer_id: p.customer
       }));
       setProjects(projectsData);
-    }
-  };
-
-  const loadEntries = async (employeeId?: number, isAdmin: boolean = false) => {
-    if (!employeeId && !isAdmin) return;
-
-    // Join timesheets_timesheet with timesheets_timework
-    let query = supabase
-      .from('timesheets_timework')
-      .select(`
-        *,
-        timesheets_timesheet!inner (
-          day,
-          permits_hours,
-          illness,
-          holiday,
-          employee_id,
-          employees_employee!inner (
-            user_id
-          )
-        )
-      `);
-
-    // If not admin, filter by employee_id
-    if (!isAdmin && employeeId) {
-      query = query.eq('timesheets_timesheet.employee_id', employeeId);
-    }
-
-    const { data: timeworks, error } = await query.order('timesheets_timesheet(day)', { ascending: false });
-
-    if (!error && timeworks) {
-      const entriesData: TimesheetEntry[] = timeworks.map(tw => {
-        const ts = tw.timesheets_timesheet!;
-        const employee = ts.employees_employee!;
-
-        return dbToEntry(tw, ts, employee.user_id);
-      });
-      setEntries(entriesData);
     }
   };
 

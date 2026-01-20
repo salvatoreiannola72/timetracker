@@ -9,18 +9,12 @@ import { Dashboard } from './pages/Dashboard';
 import { Timesheet } from './pages/Timesheet';
 import { Projects } from './pages/Projects';
 import { Reports } from './pages/Reports';
-import { testSupabaseConnection } from './test-supabase';
 import { supabase } from './lib/supabase';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, loading } = useStore();
   const [page, setPage] = useState('dashboard');
   const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
-
-  // Test Supabase connection on mount
-  useEffect(() => {
-    testSupabaseConnection();
-  }, []);
 
   // Check for password reset flow from email link
   useEffect(() => {
