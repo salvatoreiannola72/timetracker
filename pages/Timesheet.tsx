@@ -19,7 +19,11 @@ export const Timesheet: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
-  const [loadedPeriod, setLoadedPeriod] = useState<{ month: number, year: number } | null>(null);
+  const [loadedPeriod, setLoadedPeriod] = useState<{
+    month?: number,
+    year: number,
+    type: 'month' | 'year'
+  } | null>(null);
 
   const getEntryType = (item) => {
     if (item.permits_hours !== null && item.permits_hours > 0) {
@@ -54,15 +58,33 @@ export const Timesheet: React.FC = () => {
 
   useEffect(() => {
     if (user?.id) {
-      const month = currentDate.getMonth() + 1; // getMonth() returns 0-11, quindi +1
       const year = currentDate.getFullYear();
-      if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year) {
-        console.log("Loading timesheets for:", month, year);
-        loadTimesheets(user.id, month, year);
-        setLoadedPeriod({ month, year });
+
+      if (viewType === 'year') {
+        // Carica tutto l'anno (senza specificare il mese)
+        if (!loadedPeriod || loadedPeriod.year !== year || loadedPeriod.type !== 'year') {
+          console.log("Loading timesheets for year:", year);
+          loadTimesheets(user.id, undefined, year);
+          setLoadedPeriod({ year, type: 'year' });
+        }
+      } else {
+        // Carica solo il mese corrente per le viste week e month
+        const month = currentDate.getMonth() + 1;
+        if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year || loadedPeriod.type !== 'month') {
+          console.log("Loading timesheets for month:", month, year);
+          loadTimesheets(user.id, month, year);
+          setLoadedPeriod({ month, year, type: 'month' });
+        }
       }
     }
-  }, [user?.id, currentDate, loadedPeriod]);
+  }, [user?.id, currentDate, viewType, loadedPeriod]);
+
+  // Aggiungi un effetto per ricaricare quando cambia la vista
+  useEffect(() => {
+    // Reset del periodo caricato quando cambia la vista
+    // Questo forzerà il caricamento dei dati corretti
+    setLoadedPeriod(null);
+  }, [viewType]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -321,8 +343,8 @@ export const Timesheet: React.FC = () => {
           <button
             onClick={() => setViewType('week')}
             className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${viewType === 'week'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             Settimana
@@ -330,8 +352,8 @@ export const Timesheet: React.FC = () => {
           <button
             onClick={() => setViewType('month')}
             className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${viewType === 'month'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             Mese
@@ -339,8 +361,8 @@ export const Timesheet: React.FC = () => {
           <button
             onClick={() => setViewType('year')}
             className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${viewType === 'year'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-blue-500 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
               }`}
           >
             Anno
@@ -606,7 +628,7 @@ export const Timesheet: React.FC = () => {
           {yearMonths.map((monthData) => {
             const monthEntries = filteredEntries.filter(e => {
               const entryDate = new Date(e.date);
-              return entryDate.getMonth() === monthData.month;
+              return entryDate.getMonth() === monthData.month && e.hours;
             });
             const totalHours = monthEntries.reduce((sum, e) => sum + e.hours, 0);
             const isCurrentMonth = monthData.month === new Date().getMonth() && monthData.year === new Date().getFullYear();
@@ -686,8 +708,8 @@ export const Timesheet: React.FC = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, entryType: EntryType.WORK, hours: 4 })}
                       className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.WORK
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                          : 'border-slate-200 hover:border-blue-300'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        : 'border-slate-200 hover:border-blue-300'
                         }`}
                     >
                       <div className="flex items-center gap-1.5 sm:gap-2">
@@ -699,8 +721,8 @@ export const Timesheet: React.FC = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: '' })}
                       className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.VACATION
-                          ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
-                          : 'border-slate-200 hover:border-green-300'
+                        ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
+                        : 'border-slate-200 hover:border-green-300'
                         }`}
                     >
                       <div className="flex items-center gap-1.5 sm:gap-2">
@@ -712,8 +734,8 @@ export const Timesheet: React.FC = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: '' })}
                       className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.SICK_LEAVE
-                          ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
-                          : 'border-slate-200 hover:border-red-300'
+                        ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
+                        : 'border-slate-200 hover:border-red-300'
                         }`}
                     >
                       <div className="flex items-center gap-1.5 sm:gap-2">
@@ -725,8 +747,8 @@ export const Timesheet: React.FC = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: '' })}
                       className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.PERMIT
-                          ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
-                          : 'border-slate-200 hover:border-orange-300'
+                        ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                        : 'border-slate-200 hover:border-orange-300'
                         }`}
                     >
                       <div className="flex items-center gap-1.5 sm:gap-2">
