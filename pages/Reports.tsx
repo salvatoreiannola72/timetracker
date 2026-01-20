@@ -49,7 +49,6 @@ export const Reports: React.FC = () => {
           }
         return [timesheet];
       }) || [];
-      console.log("timesheets: ", timesheets)
       setTimesheets(timesheets);
     }
 
@@ -478,7 +477,7 @@ export const Reports: React.FC = () => {
                                               {/* Collaboratori per questo progetto */}
                                               <div className="pl-4 space-y-1.5">
                                                   {Object.entries(projData.users).map(([userId, hours]) => {
-                                                      const user = users.find(u => u.id === userId);
+                                                      const user = users.find(u => u.id == userId);
                                                       const userPercentage = Math.round((hours as number / projData.hours) * 100);
                                                       return (
                                                           <div key={userId} className="flex items-center gap-2 text-xs text-slate-600">
