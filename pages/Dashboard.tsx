@@ -39,7 +39,7 @@ export const Dashboard: React.FC = () => {
     try {
       // Per admin carichiamo tutte le entries, per utenti normali solo le proprie
       const data = await TimesheetsService.getTimesheetEntries(
-        undefined,
+        isAdmin ? undefined : employeeId,
         month, // month - undefined per caricare tutti i mesi
         year,  // year - undefined per caricare tutti gli anni
         isAdmin
