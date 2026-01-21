@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { Clock, Briefcase, TrendingUp, Calendar, Users, Umbrella, Stethoscope, Clock as PermitIcon } from 'lucide-react';
 import { COLORS } from '../constants';
 import { TimesheetsService } from '@/services/timesheets';
+import { useDisplayUnit } from '@/hooks/useDisplayUnit';
 
 type ViewType = 'monthly' | 'yearly';
 type DisplayUnit = 'hours' | 'days';
@@ -14,7 +15,6 @@ const HOURS_PER_DAY = 8;
 export const Dashboard: React.FC = () => {
   const { user, projects, users } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
-  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('hours');
   const [entries, setEntries] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -23,6 +23,9 @@ export const Dashboard: React.FC = () => {
       month: now.getMonth() + 1
     };
   });
+
+   const { displayUnit, setDisplayUnit, formatHours } =
+      useDisplayUnit();
 
   const getEntryType = (item: any): EntryType => {
     if (item.holiday) return EntryType.VACATION;
@@ -380,7 +383,7 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title={displayUnit === 'hours' ? 'Ore Totali' : 'Giorni Totali'}
-          value={getUnitLabel(convertToDisplayUnit(kpis.totalHours), true)}
+          value={formatHours((kpis.totalHours), true)}
           subtitle={`${entries.length} registrazioni`}
           icon={Clock}
           color="#3b82f6"
@@ -394,7 +397,7 @@ export const Dashboard: React.FC = () => {
         />
         <StatCard
           title="Media Giornaliera"
-          value={getUnitLabel(convertToDisplayUnit(kpis.avgDailyHours), true)}
+          value={formatHours((kpis.avgDailyHours), true)}
           subtitle={viewType === 'monthly' ? 'per giorno' : 'per giorno'}
           icon={TrendingUp}
           color="#f59e0b"
