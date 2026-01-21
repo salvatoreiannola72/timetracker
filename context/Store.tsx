@@ -310,13 +310,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addClient = async (client: Omit<Client, 'id'>) => {
     try {
-      const { data, error } = await supabase
-        .from('customers_customer')
-        .insert({ name: client.name })
-        .select()
-        .single();
+      const data = await CustomersService.addCustomer(client.name);
 
-      if (error) throw error;
+      if (!data) throw new Error('Client not created');
 
       if (data) {
         setClients(prev => [...prev, data]);
@@ -329,14 +325,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateClient = async (client: Client) => {
     try {
-      const { error } = await supabase
-        .from('customers_customer')
-        .update({ name: client.name })
-        .eq('id', client.id);
+      const data = await CustomersService.updateCustomer(client.id, client.name);
 
-      if (error) throw error;
+      if (!data) throw new Error('Client not updated');
 
-      setClients(prev => prev.map(c => c.id === client.id ? client : c));
+      setClients(prev => prev.map(c => c.id === client.id ? data : c));
     } catch (error) {
       console.error('Error updating client:', error);
       throw error;
@@ -345,12 +338,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const deleteClient = async (id: number) => {
     try {
-      const { error } = await supabase
-        .from('customers_customer')
-        .delete()
-        .eq('id', id);
+      const data = await CustomersService.deleteCustomer(id);
 
-      if (error) throw error;
+      if (!data) throw new Error('Client not deleted');
 
       setClients(prev => prev.filter(c => c.id !== id));
     } catch (error) {
@@ -461,24 +451,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addProject = async (project: Omit<Project, 'id'>) => {
     try {
-      const { data, error } = await supabase
-        .from('projects_project')
-        .insert({
-          name: project.name,
-          customer_id: project.customer_id || project.customerId,
-        })
-        .select()
-        .single();
+      const data = await ProjectsService.addProject(project.name, project.customerId!);
 
-      if (error) throw error;
+      if (!data) throw new Error('Project not created');
 
-      if (data) {
-        const newProject: Project = {
-          ...data,
-          customerId: data.customer_id
-        };
-        setProjects(prev => [...prev, newProject]);
-      }
+      setProjects(prev => [...prev, {
+        ...data,
+        customerId: data.customer,
+        customer_id: data.customer
+      }]);
     } catch (error) {
       console.error('Error adding project:', error);
       throw error;
@@ -487,17 +468,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateProject = async (project: Project) => {
     try {
-      const { error } = await supabase
-        .from('projects_project')
-        .update({
-          name: project.name,
-          customer_id: project.customer_id || project.customerId,
-        })
-        .eq('id', project.id);
+      const data = await ProjectsService.updateProject(project.id, project.name, project.customerId!);
 
-      if (error) throw error;
+      if (!data) throw new Error('Project not updated');
 
-      setProjects(prev => prev.map(p => p.id === project.id ? project : p));
+      setProjects(prev => prev.map(p => p.id === project.id ? {
+        ...data,
+        customerId: data.customer,
+        customer_id: data.customer
+      } : p));
     } catch (error) {
       console.error('Error updating project:', error);
       throw error;
