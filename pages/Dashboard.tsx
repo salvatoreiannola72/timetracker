@@ -42,7 +42,7 @@ export const Dashboard: React.FC = () => {
         undefined,
         month, // month - undefined per caricare tutti i mesi
         year,  // year - undefined per caricare tutti gli anni
-        true
+        isAdmin
       );
 
       if (!data) {
