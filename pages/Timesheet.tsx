@@ -64,7 +64,7 @@ export const Timesheet: React.FC = () => {
         // Carica tutto l'anno (senza specificare il mese)
         if (!loadedPeriod || loadedPeriod.year !== year || loadedPeriod.type !== 'year') {
           console.log("Loading timesheets for year:", year);
-          loadTimesheets(user.id, undefined, year);
+          loadTimesheets(user.employee_id, undefined, year);
           setLoadedPeriod({ year, type: 'year' });
         }
       } else {
@@ -72,7 +72,7 @@ export const Timesheet: React.FC = () => {
         const month = currentDate.getMonth() + 1;
         if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year || loadedPeriod.type !== 'month') {
           console.log("Loading timesheets for month:", month, year);
-          loadTimesheets(user.id, month, year);
+          loadTimesheets(user.employee_id, month, year);
           setLoadedPeriod({ month, year, type: 'month' });
         }
       }
@@ -309,7 +309,7 @@ export const Timesheet: React.FC = () => {
       }
 
       // Ricarica i timesheets dopo aver salvato
-      await loadTimesheets(user.id);
+      await loadTimesheets(user.employee_id);
 
       setIsModalOpen(false);
     } catch (error) {
@@ -323,7 +323,7 @@ export const Timesheet: React.FC = () => {
     try {
       await deleteEntry(entry);
       // Ricarica i timesheets dopo aver cancellato
-      await loadTimesheets(user.id);
+      await loadTimesheets(user.employee_id);
     } catch (error) {
       console.error("Errore cancellazione:", error);
     }

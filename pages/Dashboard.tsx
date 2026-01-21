@@ -93,7 +93,7 @@ export const Dashboard: React.FC = () => {
       const month = viewType === 'monthly' ? selectedDate.month : undefined;
       const year = selectedDate.year;
       
-      loadEntries(user.id, user.is_staff, month, year);
+      loadEntries(user.employee_id, user.is_staff, month, year);
     }
   }, [user, viewType, selectedDate]);
 
