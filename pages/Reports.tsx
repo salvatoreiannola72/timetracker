@@ -125,20 +125,37 @@ export const Reports: React.FC = () => {
         data[u.id] = { user: u, totalHours: 0, projects: {} };
     });
 
+    const entryTypeMap: Record<EntryType, { color: string; label: string }> = {
+      [EntryType.VACATION]: { color: '#10b981', label: 'Ferie' },
+      [EntryType.SICK_LEAVE]: { color: '#ef4444', label: 'Malattia' },
+      [EntryType.PERMIT]: { color: '#f59e0b', label: 'Permessi' },
+      [EntryType.WORK]: { color: '#3b82f6', label: 'Lavoro' },
+    };
+
     filteredEntries.forEach(entry => {
       if (!data[entry.userId]) return; // Should not happen
       if(entry.entry_type === EntryType.WORK){
         const project = projects.find(p => p.id === entry.projectId);
         const projId = entry.projectId;
         const projName = project?.name || 'Unknown';
-        const projColor = '#3b82f6'; // Use default blue
 
         data[entry.userId].totalHours += entry.hours;
         
         if (!data[entry.userId].projects[projId]) {
-            data[entry.userId].projects[projId] = { name: projName, hours: 0, color: projColor };
+            data[entry.userId].projects[projId] = { name: projName, hours: 0, color: entryTypeMap.WORK.color };
         }
         data[entry.userId].projects[projId].hours += entry.hours;
+      }else{
+        const projName = entryTypeMap[entry.entry_type].label;
+        const projId = entry.entry_type;
+        if (!data[entry.userId].projects[projId]) {
+            data[entry.userId].projects[projId] = { name: projName, hours: 0, color: entryTypeMap[entry.entry_type].color };
+        }
+        if(entry.entry_type == EntryType.PERMIT){
+          data[entry.userId].projects[projId].hours += entry.permits_hours;
+        }else{
+          data[entry.userId].projects[projId].hours += 8;
+        }
       }
     });
 
@@ -231,12 +248,15 @@ export const Reports: React.FC = () => {
     // Also export detailed RAW data
     if (csvContent) {
       csvContent += '\n\nDETTAGLI\n';
-      csvContent += 'Data,Utente,Cliente,Progetto,Ore\n';
+      csvContent += 'Data,Utente,Cliente,Progetto,Ore,Permesso,Ferie,Malattia\n';
       filteredEntries.forEach(entry => {
         const user = users.find(u => u.id === entry.userId);
         const project = projects.find(p => p.id === entry.projectId);
         const client = clients.find(c => c.id === project?.customer_id);
-        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","${client?.name || `Cliente ${project?.customer_id}` || ''}","${project?.name || ''}",${entry.hours}\n`;
+        const permit = (entry.permits_hours ?? 0) > 0 ? entry.permits_hours : '';
+        const holiday = entry.holiday === true ? 8 : '';
+        const illness = entry.illness === true ? 8 : '';
+        csvContent += `"${entry.date}","${user?.name || 'Unknown'}","${client?.name || (project?.customer_id ? `Cliente ${project.customer_id}` : '')}","${project?.name || ''}","${entry.hours ?? ''}","${permit}","${holiday}","${illness}"\n`;
       });
     }
 
@@ -294,9 +314,12 @@ export const Reports: React.FC = () => {
         return {
           'Data': entry.date,
           'Utente': user?.name || 'Unknown',
-          'Cliente': client?.name || `Cliente ${project?.customer_id}` || '',
+          'Cliente': client?.name || (project?.customer_id ? `Cliente ${project.customer_id}` : ''),
           'Progetto': project?.name || '',
-          'Ore': entry.hours
+          'Ore': entry.hours,
+          'Permesso': (entry.permits_hours ?? 0) > 0 ? entry.permits_hours : '',
+          'Ferie': entry.holiday === true ? 8 : '',
+          'Malattia': entry.illness === true ? 8 : ''
         };
       });
       const detailSheet = XLSX.utils.json_to_sheet(detailData);
@@ -544,7 +567,10 @@ export const Reports: React.FC = () => {
                                      {Object.values(item.projects).map((proj: any, idx) => (
                                          <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between">
                                              <div className="flex items-center gap-2 overflow-hidden">
-                                                 <div className="w-3 h-3 rounded-full flex-shrink-0 bg-blue-500"></div>
+                                                 <div
+                                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: proj.color }}
+                                                  />
                                                  <span className="text-sm font-medium text-slate-700 truncate">{proj.name}</span>
                                              </div>
                                              <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
