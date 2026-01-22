@@ -9,7 +9,6 @@ import { TimesheetsService } from '@/services/timesheets';
 import { useDisplayUnit } from '@/hooks/useDisplayUnit';
 
 type ViewType = 'monthly' | 'yearly';
-type DisplayUnit = 'hours' | 'days';
 const HOURS_PER_DAY = 8;
 
 export const Dashboard: React.FC = () => {
