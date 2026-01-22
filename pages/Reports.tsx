@@ -190,7 +190,7 @@ export const Reports: React.FC = () => {
       data[entry.projectId].totalHours += entry.hours;
       
       if (!data[entry.projectId].users[entry.userId]) {
-        const user = users.find(u => u.id === entry.userId);
+        const user = users.find(u => u.employee_id === entry.userId);
         if (user) {
           data[entry.projectId].users[entry.userId] = { user, hours: 0 };
         }
@@ -500,7 +500,9 @@ export const Reports: React.FC = () => {
                                               {/* Collaboratori per questo progetto */}
                                               <div className="pl-4 space-y-1.5">
                                                   {Object.entries(projData.users).map(([userId, hours]) => {
-                                                      const user = users.find(u => u.id == userId);
+                                                      const user = users.find(u => u.employee_id == userId);
+                                                      if (!user) console.log('User not found for ID:', userId);
+                                                      
                                                       const userPercentage = Math.round((hours as number / projData.hours) * 100);
                                                       return (
                                                           <div key={userId} className="flex items-center gap-2 text-xs text-slate-600">
