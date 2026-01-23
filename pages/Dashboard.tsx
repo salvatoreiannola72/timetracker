@@ -413,7 +413,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Leave Tracking Section - Only for regular users */}
-      {!user?.is_staff && (
+      {/* {!user?.is_staff && (
         <div>
           <h2 className="text-xl font-bold text-slate-900 mb-4">Gestione Assenze</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -443,7 +443,7 @@ export const Dashboard: React.FC = () => {
             />
           </div>
         </div>
-      )}
+      )} */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Project Distribution Chart */}
@@ -554,7 +554,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Admin Team Overview - After Charts */}
-      {user?.is_staff && (
+      {/* {user?.is_staff && (
         <div>
           <h2 className="text-xl font-bold text-slate-900 mb-4">Panoramica Team - Gestione Assenze</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -566,7 +566,6 @@ export const Dashboard: React.FC = () => {
               return (
                 <Card key={teamMember.id} className="hover:shadow-lg transition-shadow">
                   <div className="p-5">
-                    {/* User Header */}
                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
                       <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-md">
                         <span className="text-lg font-bold">
@@ -581,10 +580,7 @@ export const Dashboard: React.FC = () => {
                         )}
                       </div>
                     </div>
-
-                    {/* Leave Stats */}
                     <div className="space-y-4">
-                      {/* Vacation Days */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -611,8 +607,6 @@ export const Dashboard: React.FC = () => {
                           Utilizzati: {teamMember.vacation_days_used || 0} ({vacationPercentage.toFixed(0)}%)
                         </p>
                       </div>
-
-                      {/* Sick Days */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -639,8 +633,6 @@ export const Dashboard: React.FC = () => {
                           Utilizzati: {teamMember.sick_days_used || 0} ({sickPercentage.toFixed(0)}%)
                         </p>
                       </div>
-
-                      {/* Permits */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -674,7 +666,7 @@ export const Dashboard: React.FC = () => {
             })}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
