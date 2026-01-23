@@ -468,7 +468,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateProject = async (project: Project) => {
     try {
-      const data = await ProjectsService.updateProject(project.id, project.name, project.customerId!);
+      const data = await ProjectsService.updateProject(project.id, project.name, project.customerId!, project.active);
 
       if (!data) throw new Error('Project not updated');
 

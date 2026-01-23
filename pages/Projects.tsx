@@ -3,13 +3,13 @@ import { useStore } from '../context/Store';
 import { Role, Client, Project } from '../types';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
-import { Briefcase, Users, Edit2, Trash2, X, Plus, Search, Mail, Phone, Building2 } from 'lucide-react';
+import { Briefcase, Users, Edit2, Trash2, X, Plus, Search, Mail, Phone, Building2, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const PROJECT_COLORS = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b',
 ];
 
-type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-client' | 'delete-project' | 'delete-client' | null;
+type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-client' | 'delete-project' | 'delete-client' | 'toggle-project' | null;
 
 export const Projects: React.FC = () => {
   const { user, clients, projects, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient } = useStore();
@@ -156,6 +156,22 @@ export const Projects: React.FC = () => {
       setModalType('delete-client');
   };
 
+  const handleToggleProject = async () => {
+    if (!selectedProject) return;
+    await updateProject({
+      ...selectedProject,
+      active: !selectedProject.active,
+    });
+
+    setModalType(null);
+    setSelectedProject(null);
+  };
+
+  const openToggleProject = (project: Project) => {
+    setSelectedProject(project);
+    setModalType('toggle-project');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Search */}
@@ -269,6 +285,17 @@ export const Projects: React.FC = () => {
                         title="Modifica"
                       >
                         <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => openToggleProject(project)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          project.active
+                            ? 'text-blue-700 hover:text-blue-800 hover:bg-blue-100'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                        title={project.active ? 'Disattiva' : 'Attiva'}
+                      >
+                        {project.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                       </button>
                       <button
                         onClick={() => openDeleteProject(project)}
@@ -477,6 +504,30 @@ export const Projects: React.FC = () => {
               </Button>
               <Button type="button" onClick={handleDeleteClient} className="flex-1 bg-red-600 hover:bg-red-700">
                 Elimina
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalType === 'toggle-project' && selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              {selectedProject.active ? 'Disattiva progetto' : 'Attiva progetto'}
+            </h2>
+
+            <p className="text-slate-600 mb-6">
+              Vuoi {selectedProject.active ? 'disattivare' : 'attivare'} il progetto{' '}
+              <strong>{selectedProject.name}</strong>?
+            </p>
+
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                Annulla
+              </Button>
+              <Button type="button" onClick={handleToggleProject} className="flex-1">
+                {selectedProject.active ? 'Disattiva' : 'Attiva'}
               </Button>
             </div>
           </div>

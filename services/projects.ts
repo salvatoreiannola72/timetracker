@@ -65,9 +65,8 @@ export class ProjectsService {
         }
     } 
     
-    static async updateProject(id: number, name: string, clientId: number): Promise<any> {
+    static async updateProject(id: number, name: string, clientId: number, active: boolean): Promise<any> {
         const token = AuthService.getAccessToken();
-
         try {
             const response = await fetch(
                 `${backendUrl}/api/projects/${id}`,
@@ -77,7 +76,7 @@ export class ProjectsService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name, customer: clientId }),
+                    body: JSON.stringify({ name, customer: clientId, active: active }),
                 }
             );
             const data = await response.json();

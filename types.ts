@@ -53,7 +53,8 @@ export interface Project {
   id: number;
   name: string;
   customer_id: number;
-  customerId: number;  // alias for compatibility
+  customerId: number;
+  active: boolean;  // alias for compatibility
 }
 
 // TimesheetEntry combines timesheet and timework for easier use in UI
