@@ -13,8 +13,9 @@ const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno
 type ViewType = 'week' | 'month' | 'year';
 
 export const Timesheet: React.FC = () => {
-  const { user, projects, clients, addEntry, deleteEntry } = useStore();
+  const { user, users, projects, clients, addEntry, deleteEntry } = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedUser, setSelectedUser] = useState<number | null>(user?.employee_id || null);
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
@@ -58,13 +59,14 @@ export const Timesheet: React.FC = () => {
 
   useEffect(() => {
     if (user?.id) {
+      const employeeIdToLoad = selectedUser || user?.employee_id;
       const year = currentDate.getFullYear();
 
       if (viewType === 'year') {
         // Carica tutto l'anno (senza specificare il mese)
         if (!loadedPeriod || loadedPeriod.year !== year || loadedPeriod.type !== 'year') {
           console.log("Loading timesheets for year:", year);
-          loadTimesheets(user.employee_id, undefined, year);
+          loadTimesheets(employeeIdToLoad, undefined, year);
           setLoadedPeriod({ year, type: 'year' });
         }
       } else {
@@ -72,12 +74,31 @@ export const Timesheet: React.FC = () => {
         const month = currentDate.getMonth() + 1;
         if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year || loadedPeriod.type !== 'month') {
           console.log("Loading timesheets for month:", month, year);
-          loadTimesheets(user.employee_id, month, year);
+          loadTimesheets(employeeIdToLoad, month, year);
           setLoadedPeriod({ month, year, type: 'month' });
         }
       }
     }
   }, [user?.id, currentDate, viewType, loadedPeriod]);
+
+  // Aggiungi questo useEffect dopo quello esistente che gestisce il caricamento dei timesheets
+
+  useEffect(() => {
+    if (selectedUser && user?.id) {
+      const year = currentDate.getFullYear();
+
+      if (viewType === 'year') {
+        console.log("Loading timesheets for selected user (year):", selectedUser);
+        loadTimesheets(selectedUser, undefined, year);
+        setLoadedPeriod({ year, type: 'year' });
+      } else {
+        const month = currentDate.getMonth() + 1;
+        console.log("Loading timesheets for selected user (month):", selectedUser, month, year);
+        loadTimesheets(selectedUser, month, year);
+        setLoadedPeriod({ month, year, type: 'month' });
+      }
+    }
+  }, [selectedUser]);
 
   // Aggiungi un effetto per ricaricare quando cambia la vista
   useEffect(() => {
@@ -96,6 +117,10 @@ export const Timesheet: React.FC = () => {
     recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
     recurrenceEnd: ''
   });
+
+  const canEdit = useMemo(() => {
+    return selectedUser === user?.employee_id || selectedUser === null;
+  }, [selectedUser, user?.employee_id]);
 
   // Calculate Start of Week (Monday)
   const startOfWeek = useMemo(() => {
@@ -172,7 +197,6 @@ export const Timesheet: React.FC = () => {
       const startStr = weekDates[0].toISOString().split('T')[0];
       const endStr = weekDates[6].toISOString().split('T')[0];
       return timesheets.filter(e =>
-        e.userId === user?.id &&
         e.date >= startStr &&
         e.date <= endStr
       );
@@ -180,7 +204,6 @@ export const Timesheet: React.FC = () => {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       return timesheets.filter(e => {
-        if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year && entryDate.getMonth() === month;
       });
@@ -188,7 +211,6 @@ export const Timesheet: React.FC = () => {
       // year view
       const year = currentDate.getFullYear();
       return timesheets.filter(e => {
-        if (e.userId !== user?.id) return false;
         const entryDate = new Date(e.date);
         return entryDate.getFullYear() === year;
       });
@@ -338,8 +360,19 @@ export const Timesheet: React.FC = () => {
           <p className="text-slate-500 text-xs sm:text-sm">Gestisci le tue ore settimanali</p>
         </div>
 
+        <div>
+          {user.is_staff && (
+            <select value={selectedUser} onChange={(e) => setSelectedUser(Number(e.target.value))} className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              {users.map(u => (
+                <option key={u.id} value={u.employee_id}>{u.name} {u.surname}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
         {/* View Selector - Mobile optimized */}
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 sm:p-1 w-full sm:w-auto">
+
           <button
             onClick={() => setViewType('week')}
             className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${viewType === 'week'
@@ -369,6 +402,14 @@ export const Timesheet: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {!canEdit && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-blue-700">
+            📋 Stai visualizzando i timesheets di un altro utente. Le modifiche sono disabilitate.
+          </p>
+        </div>
+      )}
 
       {/* Navigation - Mobile optimized */}
       <div className="flex items-center justify-between bg-white p-2 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
@@ -437,11 +478,13 @@ export const Timesheet: React.FC = () => {
                               {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                               <div className="flex justify-between items-center">
                                 {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
-                                  className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
-                                  <X size={16} />
-                                </button>
+                                {canEdit && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
+                                    className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
+                                    <X size={16} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -450,9 +493,15 @@ export const Timesheet: React.FC = () => {
                     </div>
 
                     {/* Add Button */}
+                    {/* Week view - Add Button */}
                     <button
                       onClick={() => openAddModal(dateStr)}
-                      className="mt-auto w-full py-2.5 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation"
+                      disabled={!canEdit}
+                      className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation
+                        ${canEdit
+                          ? 'border-slate-200 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors'
+                          : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                        }`}
                     >
                       <Plus size={18} /> Aggiungi
                     </button>
@@ -514,11 +563,13 @@ export const Timesheet: React.FC = () => {
                             {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
                             <div className="flex justify-between  ">
                               {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
-                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-                                <X size={12} />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
+                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+                                  <X size={12} />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -527,9 +578,15 @@ export const Timesheet: React.FC = () => {
                   </div>
 
                   {/* Add Button */}
+                  {/* Week view - Add Button */}
                   <button
                     onClick={() => openAddModal(dateStr)}
-                    className="mt-auto w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-1 text-sm font-medium"
+                    disabled={!canEdit}
+                    className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation
+                      ${canEdit
+                        ? 'border-slate-200 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors'
+                        : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                      }`}
                   >
                     <Plus size={16} /> Aggiungi
                   </button>
@@ -564,12 +621,12 @@ export const Timesheet: React.FC = () => {
               return (
                 <div
                   key={index}
-                  onClick={() => isCurrentMonth && openAddModal(dateStr)}
-                  className={`min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg border transition-all cursor-pointer touch-manipulation
+                  onClick={() => isCurrentMonth && canEdit && openAddModal(dateStr)}
+                  className={`min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg border transition-all
+                    ${canEdit ? 'cursor-pointer' : 'cursor-default'}
                     ${isToday ? 'bg-blue-50 border-blue-300 ring-1 sm:ring-2 ring-blue-200' : 'border-slate-200'}
-                    ${isCurrentMonth ? 'bg-white active:shadow-md sm:hover:shadow-md' : 'bg-slate-50 opacity-40'}
-                  `}
-                >
+                    ${isCurrentMonth ? `bg-white ${canEdit ? 'active:shadow-md sm:hover:shadow-md' : ''}` : 'bg-slate-50 opacity-40'}
+                  `}>
                   <div className="flex justify-between items-start mb-0.5 sm:mb-1">
                     <span className={`text-xs sm:text-sm font-bold ${isToday ? 'text-blue-600' : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
                       {date.getDate()}
