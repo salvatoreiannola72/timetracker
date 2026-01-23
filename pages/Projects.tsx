@@ -13,7 +13,7 @@ type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-cli
 
 export const Projects: React.FC = () => {
   const { user, clients, projects, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient } = useStore();
-  const [activeTab, setActiveTab] = useState<'projects' | 'clients'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'clients'>('clients');
   const [searchQuery, setSearchQuery] = useState('');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -226,26 +226,6 @@ export const Projects: React.FC = () => {
       <div className="border-b border-slate-200">
         <div className="flex gap-6">
           <button
-            onClick={() => { setActiveTab('projects'); setSearchQuery(''); }}
-            className={`pb-3 px-2 border-b-2 transition-all ${
-              activeTab === 'projects'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Briefcase size={20} />
-              <span className="font-medium">Progetti</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                activeTab === 'projects' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'bg-slate-100 text-slate-600'
-              }`}>
-                {projects.length}
-              </span>
-            </div>
-          </button>
-          <button
             onClick={() => { setActiveTab('clients'); setSearchQuery(''); }}
             className={`pb-3 px-2 border-b-2 transition-all ${
               activeTab === 'clients'
@@ -257,11 +237,32 @@ export const Projects: React.FC = () => {
               <Users size={20} />
               <span className="font-medium">Clienti</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                activeTab === 'clients' 
-                  ? 'bg-blue-100 text-blue-700' 
+                activeTab === 'clients'
+                  ? 'bg-blue-100 text-blue-700'
                   : 'bg-slate-100 text-slate-600'
               }`}>
                 {clients.length}
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('projects'); setSearchQuery(''); }}
+            className={`pb-3 px-2 border-b-2 transition-all ${
+              activeTab === 'projects'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Briefcase size={20} />
+              <span className="font-medium">Progetti</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                activeTab === 'projects'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-slate-100 text-slate-600'
+              }`}>
+                {projects.length}
               </span>
             </div>
           </button>
@@ -269,7 +270,70 @@ export const Projects: React.FC = () => {
       </div>
 
       {/* Content */}
-      {activeTab === 'projects' ? (
+      {activeTab === 'clients' ? (
+        filteredClients.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {searchQuery ? 'Nessun cliente trovato' : 'Nessun cliente'}
+            </h3>
+            <p className="text-slate-500 mb-6">
+              {searchQuery ? 'Prova con un altro termine di ricerca' : 'Inizia creando il tuo primo cliente'}
+            </p>
+            {!searchQuery && (
+              <Button onClick={() => setModalType('create-client')} icon={<Plus size={18} />}>
+                Crea Cliente
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredClients.map(client => (
+              <Card
+                  key={client.id}
+                  className={`group relative hover:shadow-lg transition-all duration-200 border-l-4 hover:scale-[1.02] ${
+                    client.active
+                      ? 'bg-white border-slate-300 hover:border-blue-500'
+                      : 'bg-slate-100 border-slate-300'
+                  }`}
+                >
+                <div className="p-5">
+                  {/* Actions */}
+                  <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openEditClient(client)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Modifica"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => openToggleClient(client)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        client.active
+                          ? 'text-blue-700 hover:text-blue-800 hover:bg-blue-100'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      }`}
+                      title={client.active ? 'Disattiva' : 'Attiva'}
+                    >
+                      {client.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                    </button>
+                  </div>
+
+                  {/* Name & Projects count */}
+                  <h3 className="font-bold text-slate-900 text-lg mb-1">{client.name}</h3>
+                  <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
+                    <Briefcase size={14} />
+                    {getClientProjectsCount(client.id)} progetti
+                  </p>                 
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : (
         filteredProjects.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -292,7 +356,14 @@ export const Projects: React.FC = () => {
             {filteredProjects.map(project => {
               const client = getClient(project.customer_id);
               return (
-                <Card key={project.id} className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 hover:scale-[1.02]">
+                <Card
+                  key={project.id}
+                  className={`group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 hover:scale-[1.02] ${
+                    project.active
+                      ? 'bg-white border-blue-500 hover:border-blue-600'
+                      : 'bg-slate-100 border-slate-300'
+                  }`}
+                >
                   <div className="p-5">
                     {/* Actions - sempre visibili ma opacità ridotta */}
                     <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -312,15 +383,9 @@ export const Projects: React.FC = () => {
                         }`}
                         title={project.active ? 'Disattiva' : 'Attiva'}
                       >
-                        {project.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                        {project.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                       </button>
-                      <button
-                        onClick={() => openDeleteProject(project)}
-                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Elimina"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      
                     </div>
 
                     {/* Title */}
@@ -339,69 +404,7 @@ export const Projects: React.FC = () => {
             })}
           </div>
         )
-      ) : (
-        filteredClients.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="text-slate-400" size={32} />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              {searchQuery ? 'Nessun cliente trovato' : 'Nessun cliente'}
-            </h3>
-            <p className="text-slate-500 mb-6">
-              {searchQuery ? 'Prova con un altro termine di ricerca' : 'Inizia creando il tuo primo cliente'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={() => setModalType('create-client')} icon={<Plus size={18} />}>
-                Crea Cliente
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredClients.map(client => (
-              <Card key={client.id} className="group relative hover:shadow-lg transition-all duration-200 border-l-4 border-slate-300 hover:border-blue-500 hover:scale-[1.02]">
-                <div className="p-5">
-                  {/* Actions */}
-                  <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEditClient(client)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Modifica"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => openToggleClient(client)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        client.active
-                          ? 'text-blue-700 hover:text-blue-800 hover:bg-blue-100'
-                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                      }`}
-                      title={client.active ? 'Disattiva' : 'Attiva'}
-                    >
-                      {client.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                    </button>
-                    <button
-                      onClick={() => openDeleteClient(client)}
-                      className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Elimina"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-
-                  {/* Name & Projects count */}
-                  <h3 className="font-bold text-slate-900 text-lg mb-1">{client.name}</h3>
-                  <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
-                    <Briefcase size={14} />
-                    {getClientProjectsCount(client.id)} progetti
-                  </p>                 
-                </div>
-              </Card>
-            ))}
-          </div>
-        )
+        
       )}
 
       {/* Modals - unchanged */}
