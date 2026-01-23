@@ -318,7 +318,7 @@ export const Projects: React.FC = () => {
                       }`}
                       title={client.active ? 'Disattiva' : 'Attiva'}
                     >
-                      {client.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                      {client.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                     </button>
                   </div>
 
@@ -383,7 +383,7 @@ export const Projects: React.FC = () => {
                         }`}
                         title={project.active ? 'Disattiva' : 'Attiva'}
                       >
-                        {project.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                        {project.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                       </button>
                       
                     </div>
