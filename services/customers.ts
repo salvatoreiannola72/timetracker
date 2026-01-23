@@ -65,7 +65,7 @@ export class CustomersService {
         }
     }
 
-    static async updateCustomer(id: number, name: string): Promise<any> {
+    static async updateCustomer(id: number, name: string, active: boolean): Promise<any> {
         const token = AuthService.getAccessToken();
 
         try {
@@ -77,7 +77,7 @@ export class CustomersService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name }),
+                    body: JSON.stringify({ name, active: active }),
                 }
             );
             const data = await response.json();

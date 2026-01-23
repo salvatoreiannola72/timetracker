@@ -46,6 +46,7 @@ export interface User {
 export interface Client {
   id: number;
   name: string;
+  active: boolean;
 }
 
 // Project with customer_id

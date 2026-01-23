@@ -153,7 +153,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadClients = async () => {
     const data = await CustomersService.getCustomers();
-
+    
     if (data) {
       setClients(data);
     }
@@ -325,7 +325,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateClient = async (client: Client) => {
     try {
-      const data = await CustomersService.updateCustomer(client.id, client.name);
+      const data = await CustomersService.updateCustomer(client.id, client.name, client.active);
 
       if (!data) throw new Error('Client not updated');
 

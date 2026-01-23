@@ -9,7 +9,7 @@ const PROJECT_COLORS = [
     '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b',
 ];
 
-type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-client' | 'delete-project' | 'delete-client' | 'toggle-project' | null;
+type ModalType = 'create-project' | 'edit-project' | 'create-client' | 'edit-client' | 'delete-project' | 'delete-client' | 'toggle-project' | 'toggle-client' | null;
 
 export const Projects: React.FC = () => {
   const { user, clients, projects, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient } = useStore();
@@ -170,6 +170,23 @@ export const Projects: React.FC = () => {
   const openToggleProject = (project: Project) => {
     setSelectedProject(project);
     setModalType('toggle-project');
+  };
+
+  const handleToggleClient = async () => {
+    if (!selectedClient) return;
+
+    await updateClient({
+      ...selectedClient,
+      active: !selectedClient.active,
+    });
+
+    setModalType(null);
+    setSelectedClient(null);
+  };
+
+  const openToggleClient = (client: Client) => {
+    setSelectedClient(client);
+    setModalType('toggle-client');
   };
 
   return (
@@ -355,6 +372,17 @@ export const Projects: React.FC = () => {
                       <Edit2 size={16} />
                     </button>
                     <button
+                      onClick={() => openToggleClient(client)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        client.active
+                          ? 'text-blue-700 hover:text-blue-800 hover:bg-blue-100'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      }`}
+                      title={client.active ? 'Disattiva' : 'Attiva'}
+                    >
+                      {client.active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                    </button>
+                    <button
                       onClick={() => openDeleteClient(client)}
                       className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Elimina"
@@ -528,6 +556,30 @@ export const Projects: React.FC = () => {
               </Button>
               <Button type="button" onClick={handleToggleProject} className="flex-1">
                 {selectedProject.active ? 'Disattiva' : 'Attiva'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalType === 'toggle-client' && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              {selectedClient.active ? 'Disattiva cliente' : 'Attiva cliente'}
+            </h2>
+
+            <p className="text-slate-600 mb-6">
+              Vuoi {selectedClient.active ? 'disattivare' : 'attivare'} il cliente{' '}
+              <strong>{selectedClient.name}</strong>?
+            </p>
+
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setModalType(null)} className="flex-1">
+                Annulla
+              </Button>
+              <Button type="button" onClick={handleToggleClient} className="flex-1">
+                {selectedClient.active ? 'Disattiva' : 'Attiva'}
               </Button>
             </div>
           </div>
