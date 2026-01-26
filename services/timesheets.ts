@@ -255,5 +255,32 @@ export class TimesheetsService {
         }
     }
 
+    static async getHolidays(year: number): Promise<any[] | null> {
+        const token = AuthService.getAccessToken();
+        if (!token) return null;
+
+        try {
+            const url = new URL(`${backendUrl}/api/timesheets/holidays`);
+            url.searchParams.set('year', String(year));
+
+            const response = await fetch(url.toString(), {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            });
+
+            if (!response.ok) {
+            console.error('Error fetching holidays:', response.status, response.statusText);
+            return null;
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching holidays:', error);
+            return null;
+        }
+    }
+
+
 
 }

@@ -11,6 +11,8 @@ const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 const MONTH_NAMES = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
 type ViewType = 'week' | 'month' | 'year';
+type HolidayEvent = { start: string; end?: string; title?: string };
+
 
 export const Timesheet: React.FC = () => {
   const { user, users, projects, clients, addEntry, deleteEntry } = useStore();
@@ -25,6 +27,53 @@ export const Timesheet: React.FC = () => {
     year: number,
     type: 'month' | 'year'
   } | null>(null);
+  const [holidayDatesSet, setHolidayDatesSet] = useState<Set<string>>(new Set());
+
+  const buildSundaysSet = (year: number) => {
+    const s = new Set<string>();
+    const d = new Date(year, 0, 1);
+
+    // prima domenica
+    while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
+
+    while (d.getFullYear() === year) {
+      s.add(formatDate(d)); // YYYY-MM-DD
+      d.setDate(d.getDate() + 7);
+    }
+    return s;
+  };
+
+  const isRedDay = (dateStr: string, dateObj: Date) => {
+    return dateObj.getDay() === 0 || holidayDatesSet.has(dateStr);
+  };
+
+  useEffect(() => {
+  const year = currentDate.getFullYear();
+
+  const loadHolidays = async () => {
+      try {
+        const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(year);
+
+        // prendo le date "start"
+        const holidayStarts = (holidays || [])
+          .map(h => h?.start)
+          .filter(Boolean);
+
+        const sundays = buildSundaysSet(year);
+        const merged = new Set<string>([...holidayStarts, ...sundays]);
+
+        setHolidayDatesSet(merged);
+      } catch (e) {
+        console.error('Error loading holidays', e);
+        // fallback: almeno domeniche
+        setHolidayDatesSet(buildSundaysSet(year));
+      }
+    };
+
+    loadHolidays();
+  }, [currentDate]);
+
+
 
   const getEntryType = (item) => {
     if (item.permits_hours !== null && item.permits_hours > 0) {
@@ -435,6 +484,7 @@ export const Timesheet: React.FC = () => {
                 const dayEntries = filteredEntries.filter(e => e.date === dateStr);
                 const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
+                const redDay = isRedDay(dateStr, date);
 
                 return (
                   <div key={dateStr} className={`flex flex-col gap-2 min-w-[280px] w-[280px] min-h-[400px] rounded-xl p-3 border transition-colors snap-center flex-shrink-0
@@ -444,7 +494,13 @@ export const Timesheet: React.FC = () => {
                     <div className="text-center pb-2 border-b border-slate-100/50">
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
                       <div className={`mt-1 inline-flex items-center justify-center w-9 h-9 rounded-full text-base font-bold
-                          ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
+                          ${isToday
+                              ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200'
+                              : redDay
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-white border-slate-200'
+                            }
+                            `}>
                         {date.getDate()}
                       </div>
                       <div className="mt-1 h-5">
@@ -516,25 +572,57 @@ export const Timesheet: React.FC = () => {
           {/* Desktop: Grid view */}
           <div className="hidden md:grid md:grid-cols-7 gap-4">
             {weekDates.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
+              const dateStr = formatDate(date);
               const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const totalHours = dayEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
+              const isToday = dateStr === formatDate(new Date());
+
+              const redDay = isRedDay(dateStr, date);
 
               return (
-                <div key={dateStr} className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
-                    ${isToday ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-200'}`}>
-
+                <div
+                  key={dateStr}
+                  className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
+                    ${
+                      isToday
+                        ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200'
+                        : redDay
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-white border-slate-200'
+                    }`}
+                >
                   {/* Day Header */}
                   <div className="text-center pb-2 border-b border-slate-100/50">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
-                    <div className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
-                        ${isToday ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700'}`}>
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-wider ${
+                        isToday
+                          ? 'text-blue-700'
+                          : redDay
+                            ? 'text-red-700'
+                            : 'text-slate-500'
+                      }`}
+                    >
+                      {WEEK_DAYS[index]}
+                    </p>
+
+                    <div
+                      className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
+                        ${
+                          isToday
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : redDay
+                              ? 'bg-red-100 text-red-700'
+                              : 'text-slate-700'
+                        }`}
+                    >
                       {date.getDate()}
                     </div>
+
                     <div className="mt-1 h-5">
                       {totalHours > 0 && (
-                        <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                        <span className="text-xs font-medium text-slate-400">
+                          {totalHours}h
+                        </span>
                       )}
                     </div>
                   </div>
@@ -543,30 +631,65 @@ export const Timesheet: React.FC = () => {
                   <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
                     {dayEntries.map(entry => {
                       const project = projects.find(p => p.id === entry.projectId);
+
                       const entryConfig = {
                         [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
                         [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
                         [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
                         [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                      };
+                      } as const;
+
                       const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
                       const Icon = config.icon;
 
                       return (
-                        <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                          <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                          <div className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"}`}>
+                        <div
+                          key={entry.id}
+                          className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                        >
+                          <div
+                            className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg"
+                            style={{ backgroundColor: config.color }}
+                          />
+                          <div
+                            className={`pl-2 gap-2 ${
+                              entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE
+                                ? 'flex flex-row justify-between items-center no-wrap'
+                                : 'flex justify-between flex-col'
+                            }`}
+                          >
                             <div className="flex items-center gap-2">
                               <Icon size={12} style={{ color: config.color }} />
-                              <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                              <p className="text-xs font-bold text-slate-700 truncate flex-1">
+                                {config.label}
+                              </p>
                             </div>
-                            {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                            <div className="flex justify-between  ">
-                              {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+
+                            {entry.description && (
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                                {entry.description}
+                              </p>
+                            )}
+
+                            <div className="flex justify-between">
+                              {(entry.hours > 0 || entry.permits_hours > 0) && (
+                                <span
+                                  className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600"
+                                  style={{ backgroundColor: config.bgColor }}
+                                >
+                                  {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
+                                </span>
+                              )}
+
                               {canEdit && (
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
-                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteEntry(entry);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1"
+                                  title="Elimina"
+                                >
                                   <X size={12} />
                                 </button>
                               )}
@@ -578,14 +701,14 @@ export const Timesheet: React.FC = () => {
                   </div>
 
                   {/* Add Button */}
-                  {/* Week view - Add Button */}
                   <button
                     onClick={() => openAddModal(dateStr)}
                     disabled={!canEdit}
-                    className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation
-                      ${canEdit
-                        ? 'border-slate-200 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors'
-                        : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                    className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium
+                      ${
+                        canEdit
+                          ? 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors'
+                          : 'border-slate-100 text-slate-300 cursor-not-allowed'
                       }`}
                   >
                     <Plus size={16} /> Aggiungi
@@ -594,6 +717,7 @@ export const Timesheet: React.FC = () => {
               );
             })}
           </div>
+
         </>
       )}
 
@@ -618,6 +742,7 @@ export const Timesheet: React.FC = () => {
               const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
               const isToday = isSameDay(date, new Date())
               const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+              const redDay = isRedDay(dateStr, date);
               return (
                 <div
                   key={index}
@@ -626,11 +751,23 @@ export const Timesheet: React.FC = () => {
                     ${canEdit ? 'cursor-pointer' : 'cursor-default'}
                     ${isToday ? 'bg-blue-50 border-blue-300 ring-1 sm:ring-2 ring-blue-200' : 'border-slate-200'}
                     ${isCurrentMonth ? `bg-white ${canEdit ? 'active:shadow-md sm:hover:shadow-md' : ''}` : 'bg-slate-50 opacity-40'}
+                    ${redDay && isCurrentMonth ? 'bg-red-50 border-red-200' : ''}
                   `}>
                   <div className="flex justify-between items-start mb-0.5 sm:mb-1">
-                    <span className={`text-xs sm:text-sm font-bold ${isToday ? 'text-blue-600' : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
+                    <span
+                      className={`text-xs sm:text-sm font-bold ${
+                        isToday
+                          ? 'text-blue-600'
+                          : redDay && isCurrentMonth
+                            ? 'text-red-600'
+                            : isCurrentMonth
+                              ? 'text-slate-700'
+                              : 'text-slate-400'
+                      }`}
+                    >
                       {date.getDate()}
                     </span>
+
                     {totalHours > 0 && (
                       <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
                         {totalHours}h
