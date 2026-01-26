@@ -44,7 +44,7 @@ export const Timesheet: React.FC = () => {
   };
 
   const isRedDay = (dateStr: string, dateObj: Date) => {
-    return dateObj.getDay() === 0 || holidayDatesSet.has(dateStr);
+    return dateObj.getDay() === 0 || holidayDatesSet.has(dateStr) || dateObj.getDay() === 6;
   };
 
   useEffect(() => {
