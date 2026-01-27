@@ -72,7 +72,7 @@ export const Dashboard: React.FC = () => {
             userId: item.employee_id,
             projectId: item.project_id,
             date: item.day,
-            hours: item.permits_hours,
+            hours: 0,
             description: baseEntry.description,
             entry_type: EntryType.PERMIT
           });
@@ -121,7 +121,10 @@ export const Dashboard: React.FC = () => {
     // Chart Data: Hours per Project
     const projectHours: Record<string, number> = {};
     entries.forEach(e => {
-      const pName = projects.find(p => p.id === e.projectId)?.name || 'Unknown';
+      const project = projects.find(p => p.id === e.projectId);
+      if (!project) return;
+
+      const pName = project.name;
       projectHours[pName] = (projectHours[pName] || 0) + e.hours;
     });
 
