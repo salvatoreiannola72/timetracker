@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useStore } from '../context/Store';
 import { Button } from '../components/Button';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock, AlertTriangle } from 'lucide-react';
 import { EntryType, Timesheet as TimesheetEntry } from '../types';
 import { TimesheetsService } from '@/services/timesheets';
 import { time } from 'console';
@@ -28,6 +28,14 @@ export const Timesheet: React.FC = () => {
     type: 'month' | 'year'
   } | null>(null);
   const [holidayByDate, setHolidayByDate] = useState<Map<string, string>>(new Map());
+  const [isConfirmOverwriteOpen, setIsConfirmOverwriteOpen] = useState(false);
+  const [pendingDateStr, setPendingDateStr] = useState<string | null>(null);
+
+  const confirmDialogRef = useRef<HTMLDivElement | null>(null);
+  const confirmCancelBtnRef = useRef<HTMLButtonElement | null>(null);
+  const confirmContinueBtnRef = useRef<HTMLButtonElement | null>(null);
+
+
 
   const isRedDay = (dateStr: string, dateObj: Date) => {
     return dateObj.getDay() === 0 || dateObj.getDay() === 6 || holidayByDate.has(dateStr);
@@ -120,8 +128,6 @@ export const Timesheet: React.FC = () => {
     }
   }, [user?.id, currentDate, viewType, loadedPeriod]);
 
-  // Aggiungi questo useEffect dopo quello esistente che gestisce il caricamento dei timesheets
-
   useEffect(() => {
     if (selectedUser && user?.id) {
       const year = currentDate.getFullYear();
@@ -139,7 +145,6 @@ export const Timesheet: React.FC = () => {
     }
   }, [selectedUser]);
 
-  // Aggiungi un effetto per ricaricare quando cambia la vista
   useEffect(() => {
     // Reset del periodo caricato quando cambia la vista
     // Questo forzerà il caricamento dei dati corretti
@@ -318,11 +323,32 @@ export const Timesheet: React.FC = () => {
     e.preventDefault();
     if (!selectedDateForAdd || !user) return;
 
+    const isVacationOrSick =
+      formData.entryType === EntryType.VACATION ||
+      formData.entryType === EntryType.SICK_LEAVE;
+
+    const hasWorkedPeriodOnDate = (dateStr: string) => {
+      return timesheets.some(t =>
+        t.date === dateStr && (t.entry_type === EntryType.WORK || t.entry_type === EntryType.PERMIT)
+      );
+    };
+
+    if (isVacationOrSick && hasWorkedPeriodOnDate(selectedDateForAdd)) {
+      setPendingDateStr(selectedDateForAdd);
+      setIsConfirmOverwriteOpen(true);
+      return;
+    }
+    await runSaveEntry();
+  };
+
+  const runSaveEntry = async () => {
+    if (!selectedDateForAdd || !user) return;
+
     const createEntry = async (date: string) => {
       await addEntry({
         userId: user.id,
         projectId: formData.entryType === EntryType.WORK ? formData.projectId : null,
-        date: date,
+        date,
         hours: Number(formData.hours),
         entry_type: formData.entryType,
         description: formData.description,
@@ -371,15 +397,13 @@ export const Timesheet: React.FC = () => {
         await Promise.all(promises);
       }
 
-      // Ricarica i timesheets dopo aver salvato
       await loadTimesheets(user.employee_id);
-
       setIsModalOpen(false);
     } catch (error) {
       console.error("Errore nel salvataggio:", error);
-      // Gestisci l'errore come preferisci (mostra un messaggio, etc.)
     }
   };
+
 
   const handleDeleteEntry = async (entry: TimesheetEntry) => {
     if (!user) return;
@@ -390,6 +414,101 @@ export const Timesheet: React.FC = () => {
     } catch (error) {
       console.error("Errore cancellazione:", error);
     }
+  };
+
+  const workedEntriesForDate = useMemo(() => {
+    if (!pendingDateStr) return [];
+
+    return timesheets
+      .filter(e => e.date === pendingDateStr)
+      .filter(e => e.entry_type === EntryType.WORK || e.entry_type === EntryType.PERMIT)
+      .map(e => {
+        const projectName =
+          e.entry_type === EntryType.WORK
+            ? (projects.find(p => p.id === e.projectId)?.name ?? 'Progetto')
+            : 'Permesso';
+
+        const hours = Number(e.entry_type === EntryType.PERMIT ? (e.permits_hours ?? e.hours ?? 0) : (e.hours ?? 0));
+
+        return {
+          id: e.id,
+          type: e.entry_type,
+          label: e.entry_type === EntryType.WORK ? 'Lavoro' : 'Permesso',
+          projectName,
+          hours
+        };
+      })
+      .filter(x => x.hours > 0);
+  }, [pendingDateStr, timesheets, projects]);
+
+  const workedTotalHours = useMemo(() => {
+    return workedEntriesForDate.reduce((sum, e) => sum + e.hours, 0);
+  }, [workedEntriesForDate]);
+
+  useEffect(() => {
+    if (!isConfirmOverwriteOpen) return;
+
+    // focus iniziale (metti su "Continua" o "Annulla")
+    const t = window.setTimeout(() => {
+      confirmContinueBtnRef.current?.focus();
+    }, 0);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeConfirmOverwrite();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const root = confirmDialogRef.current;
+      if (!root) return;
+
+      const focusables = Array.from(
+        (root as HTMLElement).querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => {
+        const ariaHidden = el.getAttribute('aria-hidden');
+        return !el.hasAttribute('disabled') && ariaHidden !== 'true';
+      });
+
+
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isConfirmOverwriteOpen]);
+
+  const closeConfirmOverwrite = () => {
+    setIsConfirmOverwriteOpen(false);
+    setPendingDateStr(null);
+  };
+
+  const confirmOverwriteAndSave = async () => {
+    setIsConfirmOverwriteOpen(false);
+    setPendingDateStr(null);
+    await runSaveEntry();
   };
 
   return (
@@ -1094,6 +1213,115 @@ export const Timesheet: React.FC = () => {
           </div>
         </div>
       )}
+      {isConfirmOverwriteOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
+          onMouseDown={(e) => {
+            // chiudi cliccando fuori (opzionale)
+            if (e.target === e.currentTarget) closeConfirmOverwrite();
+          }}
+        >
+          <div
+            ref={confirmDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-overwrite-title"
+            aria-describedby="confirm-overwrite-desc"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
+          >
+            <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-3">
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700">
+                  <AlertTriangle size={20} />
+                </div>
+
+                <div>
+                  <h3 id="confirm-overwrite-title" className="text-base sm:text-lg font-semibold text-slate-900">
+                    Sovrascrivere le registrazioni?
+                  </h3>
+
+                  <p
+                    id="confirm-overwrite-desc"
+                    className="text-xs sm:text-sm text-slate-600 mt-1 whitespace-pre-line"
+                  >
+                    Per il {pendingDateStr} risultano già ore registrate (Lavoro o Permesso).
+                    {"\n"}
+                    Inserendo {formData.entryType === EntryType.VACATION ? 'FERIE' : 'MALATTIA'} verranno cancellate.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={closeConfirmOverwrite}
+                className="text-slate-400 hover:text-slate-600 p-1"
+                aria-label="Chiudi"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Dettaglio cosa verrà cancellato */}
+            <div className="px-4 sm:px-6 py-4">
+              <div className="rounded-lg border border-red-100 bg-red-50 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-red-900">Registrazioni che verranno rimosse</p>
+                  <span className="text-xs font-semibold text-red-700 bg-white/70 border border-red-200 px-2 py-0.5 rounded">
+                    Totale: {workedTotalHours}h
+                  </span>
+                </div>
+
+                {workedEntriesForDate.length === 0 ? (
+                  <p className="text-xs text-red-700 mt-2">Dettaglio non disponibile.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {workedEntriesForDate.map((x) => (
+                      <li
+                        key={x.id}
+                        className="flex items-start justify-between gap-3 rounded-md bg-white/70 border border-red-100 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800">
+                            {x.label}
+                            <span className="text-slate-500 font-medium">
+                              {" "}— {x.projectName}
+                            </span>
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 shrink-0">
+                          {x.hours}h
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 sm:px-6 py-4 border-t border-slate-100 bg-white flex gap-2 sm:gap-3">
+              <button
+                ref={confirmCancelBtnRef}
+                type="button"
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={closeConfirmOverwrite}
+              >
+                Annulla
+              </button>
+
+              <button
+                ref={confirmContinueBtnRef}
+                type="button"
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                onClick={confirmOverwriteAndSave}
+              >
+                Continua
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
+    
   );
 };
