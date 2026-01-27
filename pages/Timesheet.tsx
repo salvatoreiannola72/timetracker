@@ -29,20 +29,6 @@ export const Timesheet: React.FC = () => {
   } | null>(null);
   const [holidayByDate, setHolidayByDate] = useState<Map<string, string>>(new Map());
 
-  const buildSundaysSet = (year: number) => {
-    const s = new Set<string>();
-    const d = new Date(year, 0, 1);
-
-    // prima domenica
-    while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
-
-    while (d.getFullYear() === year) {
-      s.add(formatDate(d)); // YYYY-MM-DD
-      d.setDate(d.getDate() + 7);
-    }
-    return s;
-  };
-
   const isRedDay = (dateStr: string, dateObj: Date) => {
     return dateObj.getDay() === 0 || dateObj.getDay() === 6 || holidayByDate.has(dateStr);
   };
@@ -362,11 +348,13 @@ export const Timesheet: React.FC = () => {
         while (current <= end) {
           const day = current.getDay();
           let shouldAdd = false;
-
-          if (formData.recurrence === 'DAILY') {
-            if (day !== 0 && day !== 6) shouldAdd = true;
-          } else if (formData.recurrence === 'WEEKLY') {
-            if (day === startDayOfWeek) shouldAdd = true;
+          const dateStr =`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          if(!holidayByDate.has(dateStr)){
+            if (formData.recurrence === 'DAILY') {
+              if (day !== 0 && day !== 6) shouldAdd = true;
+            } else if (formData.recurrence === 'WEEKLY') {
+              if (day === startDayOfWeek) shouldAdd = true;
+            }
           }
 
           if (shouldAdd) {
