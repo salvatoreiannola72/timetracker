@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useStore } from '../context/Store';
 import { EntryType, Role, TimesheetEntry } from '../types';
 import { Card, CardContent, CardHeader } from '../components/Card';
@@ -272,24 +272,45 @@ export const Dashboard: React.FC = () => {
     return null;
   };
 
-  const CustomLegend = ({ payload }: any) => (
-    <div className="flex flex-wrap gap-4 justify-center mt-4">
-      {payload.map((entry: any, index: number) => {
-        const displayValue = convertToDisplayUnit(entry.payload.value);
-        return (
-          <div key={`legend-${index}`} className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-sm text-slate-700 font-medium">
-              {entry.value} ({getUnitLabel(displayValue, true)})
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
+  const CustomLegend = ({ payload, onHeightChange }: any) => {
+    const ref = useRef<HTMLDivElement | null>(null);
+
+    useLayoutEffect(() => {
+      if (!ref.current) return;
+
+      const el = ref.current;
+
+      const notify = () => onHeightChange?.(el.getBoundingClientRect().height);
+
+      notify(); // prima misura
+
+      const ro = new ResizeObserver(() => notify());
+      ro.observe(el);
+
+      return () => ro.disconnect();
+    }, [payload, onHeightChange]);
+
+    return (
+      <div ref={ref} className="flex flex-wrap gap-4 justify-center mt-4">
+        {payload?.map((entry: any, index: number) => {
+          const displayValue = convertToDisplayUnit(entry.payload.value);
+          return (
+            <div key={`legend-${index}`} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-sm text-slate-700 font-medium">
+                {entry.value} ({getUnitLabel(displayValue, true)})
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const PIE_BASE_HEIGHT = 260; // area necessaria al pie (senza legenda)
+  const [legendHeight, setLegendHeight] = useState(0);
+
+  const pieChartHeight = PIE_BASE_HEIGHT + legendHeight + 24; // padding extra
 
   return (
     <div className="space-y-6">
@@ -448,13 +469,14 @@ export const Dashboard: React.FC = () => {
         </div>
       )} */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-stretch">
         {/* Project Distribution Chart */}
-        <Card className="h-[500px]">
+        <Card className="h-full flex flex-col">
           <CardHeader title="Distribuzione Ore per Progetto" />
-          <CardContent className="h-[440px]">
+
+          <CardContent className="flex-1">
             {kpis.chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={pieChartHeight}>
                 <PieChart>
                   <Pie
                     data={kpis.chartData}
@@ -474,6 +496,7 @@ export const Dashboard: React.FC = () => {
                       />
                     ))}
                   </Pie>
+
                   <Tooltip
                     contentStyle={{
                       borderRadius: '8px',
@@ -489,61 +512,64 @@ export const Dashboard: React.FC = () => {
                       ];
                     }}
                   />
-                  <Legend content={<CustomLegend />} />
+
+                  <Legend
+                    content={(props) => (
+                      <CustomLegend {...props} onHeightChange={setLegendHeight} />
+                    )}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400">
-                <div className="text-center">
-                  <Briefcase size={48} className="mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Nessun dato disponibile per questo periodo</p>
-                </div>
-              </div>
+              <div className="min-h-[320px] flex items-center justify-center text-slate-400">...</div>
             )}
           </CardContent>
         </Card>
 
         {/* Trend Chart */}
-        <Card className="h-[500px]">
+        <Card className="h-full flex flex-col">
           <CardHeader title={viewType === 'monthly' ? 'Attività Giornaliera' : 'Attività Mensile'} />
-          <CardContent className="h-[440px]">
+
+          <CardContent className="flex-1">
             {kpis.trendData.some(d => d.hours > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={kpis.trendData.map(d => ({
-                    ...d,
-                    displayValue: convertToDisplayUnit(d.hours)
-                  }))}
-                  margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
-                >
-                  <XAxis
-                    dataKey="label"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={{ stroke: '#e2e8f0' }}
-                    tick={{ fill: '#64748b' }}
-                  />
-                  <YAxis
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={{ stroke: '#e2e8f0' }}
-                    tick={{ fill: '#64748b' }}
-                    label={{
-                      value: displayUnit === 'hours' ? 'Ore' : 'Giorni',
-                      angle: -90,
-                      position: 'insideLeft',
-                      style: { fill: '#64748b', fontSize: 12 }
-                    }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar
-                    dataKey="displayValue"
-                    fill="#3b82f6"
-                    radius={[6, 6, 0, 0]}
-                    barSize={viewType === 'monthly' ? 20 : 32}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[320px] sm:h-[380px] lg:h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={kpis.trendData.map(d => ({
+                      ...d,
+                      displayValue: convertToDisplayUnit(d.hours)
+                    }))}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+                  >
+                    <XAxis
+                      dataKey="label"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e2e8f0' }}
+                      tick={{ fill: '#64748b' }}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e2e8f0' }}
+                      tick={{ fill: '#64748b' }}
+                      label={{
+                        value: displayUnit === 'hours' ? 'Ore' : 'Giorni',
+                        angle: -90,
+                        position: 'insideLeft',
+                        style: { fill: '#64748b', fontSize: 12 }
+                      }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar
+                      dataKey="displayValue"
+                      fill="#3b82f6"
+                      radius={[6, 6, 0, 0]}
+                      barSize={viewType === 'monthly' ? 20 : 32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400">
                 <div className="text-center">
@@ -555,6 +581,7 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
 
       {/* Admin Team Overview - After Charts */}
       {/* {user?.is_staff && (
