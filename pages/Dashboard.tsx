@@ -521,7 +521,12 @@ export const Dashboard: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="min-h-[320px] flex items-center justify-center text-slate-400">...</div>
+              <div className="min-h-[320px] flex items-center justify-center text-slate-400">
+                <div className="text-center">
+                  <Briefcase size={48} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Nessun dato disponibile per questo periodo</p>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
