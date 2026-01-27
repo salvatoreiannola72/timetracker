@@ -27,7 +27,7 @@ export const Timesheet: React.FC = () => {
     year: number,
     type: 'month' | 'year'
   } | null>(null);
-  const [holidayDatesSet, setHolidayDatesSet] = useState<Set<string>>(new Set());
+  const [holidayByDate, setHolidayByDate] = useState<Map<string, string>>(new Map());
 
   const buildSundaysSet = (year: number) => {
     const s = new Set<string>();
@@ -44,29 +44,33 @@ export const Timesheet: React.FC = () => {
   };
 
   const isRedDay = (dateStr: string, dateObj: Date) => {
-    return dateObj.getDay() === 0 || holidayDatesSet.has(dateStr) || dateObj.getDay() === 6;
+    return dateObj.getDay() === 0 || dateObj.getDay() === 6 || holidayByDate.has(dateStr);
+  };
+
+  const getHolidayTitle = (dateStr: string) => {
+    return holidayByDate.get(dateStr) || null;
   };
 
   useEffect(() => {
-  const year = currentDate.getFullYear();
+    const year = currentDate.getFullYear();
 
-  const loadHolidays = async () => {
+    const loadHolidays = async () => {
       try {
         const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(year);
 
-        // prendo le date "start"
-        const holidayStarts = (holidays || [])
-          .map(h => h?.start)
-          .filter(Boolean);
+        const m = new Map<string, string>();
+        (holidays || []).forEach(h => {
+          if (!h?.start) return;
+          const title = h.title?.trim();
+          if (!title) return;
 
-        const sundays = buildSundaysSet(year);
-        const merged = new Set<string>([...holidayStarts, ...sundays]);
+          m.set(h.start, title);
+        });
 
-        setHolidayDatesSet(merged);
+        setHolidayByDate(m);
       } catch (e) {
         console.error('Error loading holidays', e);
-        // fallback: almeno domeniche
-        setHolidayDatesSet(buildSundaysSet(year));
+        setHolidayByDate(new Map());
       }
     };
 
@@ -485,6 +489,7 @@ export const Timesheet: React.FC = () => {
                 const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
                 const redDay = isRedDay(dateStr, date);
+                const holidayTitle = getHolidayTitle(dateStr);
 
                 return (
                   <div key={dateStr} className={`flex flex-col gap-2 min-w-[280px] w-[280px] min-h-[400px] rounded-xl p-3 border transition-colors snap-center flex-shrink-0
@@ -503,11 +508,17 @@ export const Timesheet: React.FC = () => {
                             `}>
                         {date.getDate()}
                       </div>
+                      
                       <div className="mt-1 h-5">
                         {totalHours > 0 && (
                           <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
                         )}
                       </div>
+                      {holidayTitle && (
+                        <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
+                          {holidayTitle}
+                        </div>
+                      )}
                     </div>
 
                     {/* Entries List */}
@@ -578,6 +589,7 @@ export const Timesheet: React.FC = () => {
               const isToday = dateStr === formatDate(new Date());
 
               const redDay = isRedDay(dateStr, date);
+              const holidayTitle = getHolidayTitle(dateStr);
 
               return (
                 <div
@@ -625,6 +637,11 @@ export const Timesheet: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    {holidayTitle && (
+                      <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
+                        {holidayTitle}
+                      </div>
+                    )}
                   </div>
 
                   {/* Entries List */}
@@ -743,6 +760,7 @@ export const Timesheet: React.FC = () => {
               const isToday = isSameDay(date, new Date())
               const isCurrentMonth = date.getMonth() === currentDate.getMonth();
               const redDay = isRedDay(dateStr, date);
+              const holidayTitle = getHolidayTitle(dateStr);
               return (
                 <div
                   key={index}
@@ -753,9 +771,8 @@ export const Timesheet: React.FC = () => {
                     ${isCurrentMonth ? `bg-white ${canEdit ? 'active:shadow-md sm:hover:shadow-md' : ''}` : 'bg-slate-50 opacity-40'}
                     ${redDay && isCurrentMonth ? 'bg-red-50 border-red-200' : ''}
                   `}>
-                  <div className="flex justify-between items-start mb-0.5 sm:mb-1">
-                    <span
-                      className={`text-xs sm:text-sm font-bold ${
+                  <div className="flex justify-between items-start">
+                      <span className={`text-xs sm:text-sm font-bold ${
                         isToday
                           ? 'text-blue-600'
                           : redDay && isCurrentMonth
@@ -763,17 +780,21 @@ export const Timesheet: React.FC = () => {
                             : isCurrentMonth
                               ? 'text-slate-700'
                               : 'text-slate-400'
-                      }`}
-                    >
-                      {date.getDate()}
-                    </span>
-
-                    {totalHours > 0 && (
-                      <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
-                        {totalHours}h
+                      }`}>
+                        {date.getDate()}
                       </span>
+
+                      {totalHours > 0 && (
+                        <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
+                          {totalHours}h
+                        </span>
+                      )}
+                    </div>
+                    {isCurrentMonth && holidayTitle && (
+                      <div className="mt-1 text-[10px] sm:text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight">
+                        {holidayTitle}
+                      </div>
                     )}
-                  </div>
 
                   <div className="space-y-0.5 sm:space-y-1">
                     {dayEntries.slice(0, 2).map(entry => {
