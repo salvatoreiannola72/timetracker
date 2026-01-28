@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { Lock, User } from 'lucide-react';
 
 interface LoginProps {
-  onNavigate?: (page: 'login' | 'forgot-password') => void;
+  onNavigate?: (page: 'login') => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
@@ -78,24 +78,6 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
                   disabled={loading}
                 />
               </div>
-            </div>
-
-            {onNavigate && (
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('forgot-password')}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                >
-                  Password dimenticata?
-                </button>
-              </div>
-            )}
-
-            <div className="bg-blue-50 p-4 rounded-lg text-xs text-blue-700">
-               <p className="font-semibold mb-1">Credenziali Demo:</p>
-               <p>Email: admin@edgeworks.it o user@edgeworks.it</p>
-               <p>Password: (quella che hai impostato in Supabase)</p>
             </div>
 
             {error && <p className="text-sm text-red-600 text-center bg-red-50 p-3 rounded-lg">{error}</p>}
