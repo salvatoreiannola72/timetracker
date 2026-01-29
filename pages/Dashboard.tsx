@@ -15,6 +15,7 @@ export const Dashboard: React.FC = () => {
   const { user, projects, users } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
+  const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     return {
@@ -23,8 +24,8 @@ export const Dashboard: React.FC = () => {
     };
   });
 
-   const { displayUnit, setDisplayUnit, formatHours } =
-      useDisplayUnit();
+  const { displayUnit, setDisplayUnit, formatHours } =
+    useDisplayUnit();
 
   const getEntryType = (item: any): EntryType => {
     if (item.holiday) return EntryType.VACATION;
@@ -41,7 +42,7 @@ export const Dashboard: React.FC = () => {
     try {
       // Per admin carichiamo tutte le entries, per utenti normali solo le proprie
       const data = await TimesheetsService.getTimesheetEntries(
-        isAdmin ? undefined : employeeId,
+        isAdmin && dashboardDisplay === "all" ? undefined : employeeId,
         month, // month - undefined per caricare tutti i mesi
         year,  // year - undefined per caricare tutti gli anni
         isAdmin
@@ -97,7 +98,7 @@ export const Dashboard: React.FC = () => {
       
       loadEntries(user.employee_id, user.is_staff, month, year);
     }
-  }, [user, viewType, selectedDate]);
+  }, [user, viewType, selectedDate, dashboardDisplay]);
 
   // Helper function to convert hours to display unit
   const convertToDisplayUnit = (hours: number): number => {
@@ -105,7 +106,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const getUnitLabel = (value: number, short: boolean = false): string => {
-    const formatted = value.toFixed(1);
+    const formatted = value.toFixed(2);
     if (displayUnit === 'days') {
       return short ? `${formatted}g` : `${formatted} ${value === 1 ? 'giorno' : 'giorni'}`;
     }
@@ -259,12 +260,11 @@ export const Dashboard: React.FC = () => {
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const value = convertToDisplayUnit(payload[0].value);
       return (
         <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-slate-200">
           <p className="text-sm font-semibold text-slate-900">{payload[0].payload.label}</p>
           <p className="text-sm text-slate-600">
-            <span className="font-medium">{getUnitLabel(value, true)}</span> logged
+            <span className="font-medium">{getUnitLabel(payload[0].value)}</span>
           </p>
         </div>
       );
@@ -321,6 +321,28 @@ export const Dashboard: React.FC = () => {
         </h1>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* All/Personal Toggle */}
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+            <button
+              onClick={() => setDashboardDisplay('all')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'all'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+                }`}
+            >
+              Totale
+            </button>
+            <button
+              onClick={() =>  setDashboardDisplay('personal')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'personal'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+                }`}
+            >
+              Personale
+            </button>
+          </div>
+
           {/* Display Unit Toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
             <button
