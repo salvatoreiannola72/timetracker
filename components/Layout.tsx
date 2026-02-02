@@ -154,7 +154,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-40">
         <div className="flex items-center justify-around px-2 py-1 safe-bottom">
           <MobileNavItem page="dashboard" icon={LayoutDashboard} label="Home" />
           <MobileNavItem page="timesheet" icon={Calendar} label="Timesheet" />
