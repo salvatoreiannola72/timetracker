@@ -178,6 +178,7 @@ export const Dashboard: React.FC = () => {
     };
   }, [entries, projects, viewType, selectedDate]);
 
+  console.log('kpis', user)
   const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
     <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
       <div className="p-6 flex items-center justify-between">
@@ -322,26 +323,31 @@ export const Dashboard: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* All/Personal Toggle */}
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-            <button
-              onClick={() => setDashboardDisplay('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'all'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-                }`}
-            >
-              Totale
-            </button>
-            <button
-              onClick={() =>  setDashboardDisplay('personal')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'personal'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-                }`}
-            >
-              Personale
-            </button>
-          </div>
+          {
+            user?.is_staff && (
+                 <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                    <button
+                      onClick={() => setDashboardDisplay('all')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'all'
+                          ? 'bg-blue-500 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                      Totale
+                    </button>
+                    <button
+                      onClick={() =>  setDashboardDisplay('personal')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'personal'
+                          ? 'bg-blue-500 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                      Personale
+                    </button>
+                  </div>
+            )
+          }
+       
 
           {/* Display Unit Toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
@@ -456,6 +462,27 @@ export const Dashboard: React.FC = () => {
             color="#8b5cf6"
           />
         )}
+          <StatCard
+            title="Ferie"
+            value={user.vacation_days_remaining}
+            subtitle={`${user.vacation_days_total}g totali`}
+            icon={Umbrella}
+            color="#16a34a"
+          />
+          <StatCard
+            title="Permessi"
+            value={user.permit_hours_used}
+            subtitle={`${user.permit_hours_total}h totali`}
+            icon={Clock}
+            color="#d97706"
+          />
+          <StatCard
+            title="Malattie"
+            value={user.sick_days_remaining}
+            subtitle={`${user.sick_days_total}g totali`}
+            icon={Stethoscope}
+            color="#dc2626"
+          />
       </div>
 
       {/* Leave Tracking Section - Only for regular users */}
