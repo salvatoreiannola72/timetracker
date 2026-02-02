@@ -264,8 +264,12 @@ export const Timesheet: React.FC = () => {
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
     if (!formData.clientId) return [];
-    return projects.filter(p => p.customer === Number(formData.clientId));
+    return projects.filter(p => p.customer === Number(formData.clientId) && p.active);
   }, [projects, formData.clientId]);
+
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => c.active);
+  }, [projects]);
 
   const handlePrev = () => {
     const d = new Date(currentDate);
@@ -1110,7 +1114,7 @@ export const Timesheet: React.FC = () => {
                         onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
                       >
                         <option value="">Seleziona cliente...</option>
-                        {clients.map(c => (
+                        {filteredClients.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
