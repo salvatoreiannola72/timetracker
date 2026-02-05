@@ -17,7 +17,11 @@ type HolidayEvent = { start: string; end?: string; title?: string };
 export const Timesheet: React.FC = () => {
   const { user, users, projects, clients, addEntry, deleteEntry } = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedUser, setSelectedUser] = useState<number | null>(user?.employee_id || null);
+  const [selectedUser, setSelectedUser] = useState<number | null>(() => {
+    if (!user?.employee_id) return null;
+    const userExists = users.some(u => u.employee_id === user.employee_id);
+    return userExists ? user.employee_id : null;
+  });
   const [viewType, setViewType] = useState<ViewType>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
@@ -126,22 +130,25 @@ export const Timesheet: React.FC = () => {
         }
       }
     }
-  }, [user?.id, currentDate, viewType, loadedPeriod]);
+  }, [user?.id, currentDate, viewType, loadedPeriod, selectedUser]);
 
   useEffect(() => {
-    if (selectedUser && user?.id) {
-      const year = currentDate.getFullYear();
+    // Non caricare se selectedUser è null
+    if (!selectedUser || !user?.id) {
+      return;
+    }
 
-      if (viewType === 'year') {
-        console.log("Loading timesheets for selected user (year):", selectedUser);
-        loadTimesheets(selectedUser, undefined, year);
-        setLoadedPeriod({ year, type: 'year' });
-      } else {
-        const month = currentDate.getMonth() + 1;
-        console.log("Loading timesheets for selected user (month):", selectedUser, month, year);
-        loadTimesheets(selectedUser, month, year);
-        setLoadedPeriod({ month, year, type: 'month' });
-      }
+    const year = currentDate.getFullYear();
+
+    if (viewType === 'year') {
+      console.log("Loading timesheets for selected user (year):", selectedUser);
+      loadTimesheets(selectedUser, undefined, year);
+      setLoadedPeriod({ year, type: 'year' });
+    } else {
+      const month = currentDate.getMonth() + 1;
+      console.log("Loading timesheets for selected user (month):", selectedUser, month, year);
+      loadTimesheets(selectedUser, month, year);
+      setLoadedPeriod({ month, year, type: 'month' });
     }
   }, [selectedUser]);
 
@@ -163,7 +170,8 @@ export const Timesheet: React.FC = () => {
   });
 
   const canEdit = useMemo(() => {
-    return selectedUser === user?.employee_id || selectedUser === null;
+    if (selectedUser === null) return false;
+    return selectedUser === user?.employee_id;
   }, [selectedUser, user?.employee_id]);
 
   // Calculate Start of Week (Monday)
@@ -378,8 +386,8 @@ export const Timesheet: React.FC = () => {
         while (current <= end) {
           const day = current.getDay();
           let shouldAdd = false;
-          const dateStr =`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-          if(!holidayByDate.has(dateStr)){
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          if (!holidayByDate.has(dateStr)) {
             if (formData.recurrence === 'DAILY') {
               if (day !== 0 && day !== 6) shouldAdd = true;
             } else if (formData.recurrence === 'WEEKLY') {
@@ -527,6 +535,7 @@ export const Timesheet: React.FC = () => {
         <div>
           {user.is_staff && (
             <select value={selectedUser} onChange={(e) => setSelectedUser(Number(e.target.value))} className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <option value="">Seleziona un dipendente...</option>
               {users.map(u => (
                 <option key={u.id} value={u.employee_id}>{u.name} {u.surname}</option>
               ))}
@@ -567,7 +576,16 @@ export const Timesheet: React.FC = () => {
         </div>
       </div>
 
-      {!canEdit && (
+      {/* Messaggio quando nessun utente è selezionato */}
+      {selectedUser === null && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-amber-700">
+            ⚠️ Seleziona un dipendente dalla lista per visualizzare i timesheets.
+          </p>
+        </div>
+      )}
+
+      {!canEdit && selectedUser !== null && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <p className="text-sm text-blue-700">
             📋 Stai visualizzando i timesheets di un altro utente. Le modifiche sono disabilitate.
@@ -575,41 +593,43 @@ export const Timesheet: React.FC = () => {
         </div>
       )}
 
-      {/* Navigation - Mobile optimized */}
-      <div className="flex items-center justify-between bg-white p-2 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
-        <button onClick={handlePrev} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
-          <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
-        </button>
-        <div className="px-2 sm:px-4 font-bold text-slate-700 text-sm sm:text-base text-center flex-1">
-          {getDateLabel()}
-        </div>
-        <button onClick={handleNext} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
-          <ChevronRight size={18} className="sm:w-5 sm:h-5" />
-        </button>
-      </div>
-
-      {/* WEEK VIEW - Mobile vertical scroll */}
-      {viewType === 'week' && (
+      {selectedUser !== null && (
         <>
-          {/* Mobile: vertical scrolling view */}
-          <div className="md:hidden">
-            <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
-              {weekDates.map((date, index) => {
-                const dateStr = date.toISOString().split('T')[0];
-                const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-                const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-                const isToday = dateStr === new Date().toISOString().split('T')[0];
-                const redDay = isRedDay(dateStr, date);
-                const holidayTitle = getHolidayTitle(dateStr);
+          {/* Navigation - Mobile optimized */}
+          <div className="flex items-center justify-between bg-white p-2 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
+            <button onClick={handlePrev} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
+              <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
+            </button>
+            <div className="px-2 sm:px-4 font-bold text-slate-700 text-sm sm:text-base text-center flex-1">
+              {getDateLabel()}
+            </div>
+            <button onClick={handleNext} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-md text-slate-600 touch-manipulation">
+              <ChevronRight size={18} className="sm:w-5 sm:h-5" />
+            </button>
+          </div>
 
-                return (
-                  <div key={dateStr} className={`flex flex-col gap-2 min-w-[280px] w-[280px] min-h-[400px] rounded-xl p-3 border transition-colors snap-center flex-shrink-0
+          {/* WEEK VIEW - Mobile vertical scroll */}
+          {viewType === 'week' && (
+            <>
+              {/* Mobile: vertical scrolling view */}
+              <div className="md:hidden">
+                <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
+                  {weekDates.map((date, index) => {
+                    const dateStr = date.toISOString().split('T')[0];
+                    const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+                    const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    const redDay = isRedDay(dateStr, date);
+                    const holidayTitle = getHolidayTitle(dateStr);
+
+                    return (
+                      <div key={dateStr} className={`flex flex-col gap-2 min-w-[280px] w-[280px] min-h-[400px] rounded-xl p-3 border transition-colors snap-center flex-shrink-0
                       ${isToday ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200' : 'bg-white border-slate-200'}`}>
 
-                    {/* Day Header */}
-                    <div className="text-center pb-2 border-b border-slate-100/50">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
-                      <div className={`mt-1 inline-flex items-center justify-center w-9 h-9 rounded-full text-base font-bold
+                        {/* Day Header */}
+                        <div className="text-center pb-2 border-b border-slate-100/50">
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{WEEK_DAYS[index]}</p>
+                          <div className={`mt-1 inline-flex items-center justify-center w-9 h-9 rounded-full text-base font-bold
                           ${isToday
                               ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200'
                               : redDay
@@ -617,715 +637,714 @@ export const Timesheet: React.FC = () => {
                                 : 'bg-white border-slate-200'
                             }
                             `}>
-                        {date.getDate()}
+                            {date.getDate()}
+                          </div>
+
+                          <div className="mt-1 h-5">
+                            {totalHours > 0 && (
+                              <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                            )}
+                          </div>
+                          {holidayTitle && (
+                            <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
+                              {holidayTitle}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Entries List */}
+                        <div className="flex-1 space-y-2 overflow-y-auto">
+                          {dayEntries.map(entry => {
+                            const project = projects.find(p => p.id === entry.projectId);
+                            const entryConfig = {
+                              [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                              [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                              [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                              [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                            };
+                            const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                            const Icon = config.icon;
+
+                            return (
+                              <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm active:shadow-md transition-shadow touch-manipulation">
+                                <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
+                                <div className={`${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"} pl-2 gap-2`}>
+                                  <div className="flex items-center gap-2">
+                                    <Icon size={14} style={{ color: config.color }} />
+                                    <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
+                                  </div>
+                                  {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
+                                  <div className="flex justify-between items-center">
+                                    {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
+                                    {canEdit && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
+                                        className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
+                                        <X size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Add Button */}
+                        {/* Week view - Add Button */}
+                        <button
+                          onClick={() => openAddModal(dateStr)}
+                          disabled={!canEdit}
+                          className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation
+                        ${canEdit
+                              ? 'border-slate-200 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors'
+                              : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                            }`}
+                        >
+                          <Plus size={18} /> Aggiungi
+                        </button>
                       </div>
-                      
-                      <div className="mt-1 h-5">
-                        {totalHours > 0 && (
-                          <span className="text-xs font-medium text-slate-400">{totalHours}h</span>
+                    );
+                  })}
+                </div>
+                {/* Scroll indicator */}
+                <p className="text-center text-xs text-slate-400 mt-2">← Scorri per vedere tutti i giorni →</p>
+              </div>
+
+              {/* Desktop: Grid view */}
+              <div className="hidden md:grid md:grid-cols-7 gap-4">
+                {weekDates.map((date, index) => {
+                  const dateStr = formatDate(date);
+                  const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+                  const totalHours = dayEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
+                  const isToday = dateStr === formatDate(new Date());
+
+                  const redDay = isRedDay(dateStr, date);
+                  const holidayTitle = getHolidayTitle(dateStr);
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
+                    ${isToday
+                          ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200'
+                          : redDay
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-white border-slate-200'
+                        }`}
+                    >
+                      {/* Day Header */}
+                      <div className="text-center pb-2 border-b border-slate-100/50">
+                        <p
+                          className={`text-xs font-semibold uppercase tracking-wider ${isToday
+                            ? 'text-blue-700'
+                            : redDay
+                              ? 'text-red-700'
+                              : 'text-slate-500'
+                            }`}
+                        >
+                          {WEEK_DAYS[index]}
+                        </p>
+
+                        <div
+                          className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
+                        ${isToday
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : redDay
+                                ? 'bg-red-100 text-red-700'
+                                : 'text-slate-700'
+                            }`}
+                        >
+                          {date.getDate()}
+                        </div>
+
+                        <div className="mt-1 h-5">
+                          {totalHours > 0 && (
+                            <span className="text-xs font-medium text-slate-400">
+                              {totalHours}h
+                            </span>
+                          )}
+                        </div>
+                        {holidayTitle && (
+                          <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
+                            {holidayTitle}
+                          </div>
                         )}
                       </div>
-                      {holidayTitle && (
-                        <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
-                          {holidayTitle}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Entries List */}
-                    <div className="flex-1 space-y-2 overflow-y-auto">
-                      {dayEntries.map(entry => {
-                        const project = projects.find(p => p.id === entry.projectId);
-                        const entryConfig = {
-                          [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                          [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                          [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                          [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                        };
-                        const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                        const Icon = config.icon;
+                      {/* Entries List */}
+                      <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                        {dayEntries.map(entry => {
+                          const project = projects.find(p => p.id === entry.projectId);
 
-                        return (
-                          <div key={entry.id} className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm active:shadow-md transition-shadow touch-manipulation">
-                            <div className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ backgroundColor: config.color }}></div>
-                            <div className={`${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE ? "flex flex-row justify-between items-center no-wrap" : "flex justify-between flex-col"} pl-2 gap-2`}>
-                              <div className="flex items-center gap-2">
-                                <Icon size={14} style={{ color: config.color }} />
-                                <p className="text-xs font-bold text-slate-700 truncate flex-1">{config.label}</p>
-                              </div>
-                              {entry.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{entry.description}</p>}
-                              <div className="flex justify-between items-center">
-                                {(entry.hours > 0 || entry.permits_hours > 0) && (<span className="text-xs font-semibold px-2 py-1 rounded text-slate-600" style={{ backgroundColor: config.bgColor }}>{entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h</span>)}
-                                {canEdit && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry); }}
-                                    className="text-red-400 hover:text-red-600 p-1 touch-manipulation">
-                                    <X size={16} />
-                                  </button>
+                          const entryConfig = {
+                            [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                            [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                            [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                            [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                          } as const;
+
+                          const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                          const Icon = config.icon;
+
+                          return (
+                            <div
+                              key={entry.id}
+                              className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                            >
+                              <div
+                                className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg"
+                                style={{ backgroundColor: config.color }}
+                              />
+                              <div
+                                className={`pl-2 gap-2 ${entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE
+                                  ? 'flex flex-row justify-between items-center no-wrap'
+                                  : 'flex justify-between flex-col'
+                                  }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Icon size={12} style={{ color: config.color }} />
+                                  <p className="text-xs font-bold text-slate-700 truncate flex-1">
+                                    {config.label}
+                                  </p>
+                                </div>
+
+                                {entry.description && (
+                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                                    {entry.description}
+                                  </p>
                                 )}
+
+                                <div className="flex justify-between">
+                                  {(entry.hours > 0 || entry.permits_hours > 0) && (
+                                    <span
+                                      className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600"
+                                      style={{ backgroundColor: config.bgColor }}
+                                    >
+                                      {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
+                                    </span>
+                                  )}
+
+                                  {canEdit && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteEntry(entry);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1"
+                                      title="Elimina"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Add Button */}
-                    {/* Week view - Add Button */}
-                    <button
-                      onClick={() => openAddModal(dateStr)}
-                      disabled={!canEdit}
-                      className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium touch-manipulation
-                        ${canEdit
-                          ? 'border-slate-200 text-slate-400 active:border-blue-400 active:text-blue-500 transition-colors'
-                          : 'border-slate-100 text-slate-300 cursor-not-allowed'
-                        }`}
-                    >
-                      <Plus size={18} /> Aggiungi
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Scroll indicator */}
-            <p className="text-center text-xs text-slate-400 mt-2">← Scorri per vedere tutti i giorni →</p>
-          </div>
-
-          {/* Desktop: Grid view */}
-          <div className="hidden md:grid md:grid-cols-7 gap-4">
-            {weekDates.map((date, index) => {
-              const dateStr = formatDate(date);
-              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-              const totalHours = dayEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
-              const isToday = dateStr === formatDate(new Date());
-
-              const redDay = isRedDay(dateStr, date);
-              const holidayTitle = getHolidayTitle(dateStr);
-
-              return (
-                <div
-                  key={dateStr}
-                  className={`flex flex-col gap-3 min-h-[500px] rounded-xl p-3 border transition-colors
-                    ${
-                      isToday
-                        ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-200'
-                        : redDay
-                          ? 'bg-red-50 border-red-200'
-                          : 'bg-white border-slate-200'
-                    }`}
-                >
-                  {/* Day Header */}
-                  <div className="text-center pb-2 border-b border-slate-100/50">
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wider ${
-                        isToday
-                          ? 'text-blue-700'
-                          : redDay
-                            ? 'text-red-700'
-                            : 'text-slate-500'
-                      }`}
-                    >
-                      {WEEK_DAYS[index]}
-                    </p>
-
-                    <div
-                      className={`mt-1 inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
-                        ${
-                          isToday
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : redDay
-                              ? 'bg-red-100 text-red-700'
-                              : 'text-slate-700'
-                        }`}
-                    >
-                      {date.getDate()}
-                    </div>
-
-                    <div className="mt-1 h-5">
-                      {totalHours > 0 && (
-                        <span className="text-xs font-medium text-slate-400">
-                          {totalHours}h
-                        </span>
-                      )}
-                    </div>
-                    {holidayTitle && (
-                      <div className="mt-1 text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight text-center">
-                        {holidayTitle}
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Entries List */}
-                  <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
-                    {dayEntries.map(entry => {
-                      const project = projects.find(p => p.id === entry.projectId);
-
-                      const entryConfig = {
-                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                      } as const;
-
-                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                      const Icon = config.icon;
-
-                      return (
-                        <div
-                          key={entry.id}
-                          className="group relative bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                        >
-                          <div
-                            className="w-1 h-full absolute left-0 top-0 bottom-0 rounded-l-lg"
-                            style={{ backgroundColor: config.color }}
-                          />
-                          <div
-                            className={`pl-2 gap-2 ${
-                              entry.entry_type === EntryType.VACATION || entry.entry_type === EntryType.SICK_LEAVE
-                                ? 'flex flex-row justify-between items-center no-wrap'
-                                : 'flex justify-between flex-col'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Icon size={12} style={{ color: config.color }} />
-                              <p className="text-xs font-bold text-slate-700 truncate flex-1">
-                                {config.label}
-                              </p>
-                            </div>
-
-                            {entry.description && (
-                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                                {entry.description}
-                              </p>
-                            )}
-
-                            <div className="flex justify-between">
-                              {(entry.hours > 0 || entry.permits_hours > 0) && (
-                                <span
-                                  className="text-xs font-semibold px-1.5 py-0.5 rounded text-slate-600"
-                                  style={{ backgroundColor: config.bgColor }}
-                                >
-                                  {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
-                                </span>
-                              )}
-
-                              {canEdit && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteEntry(entry);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1"
-                                  title="Elimina"
-                                >
-                                  <X size={12} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Add Button */}
-                  <button
-                    onClick={() => openAddModal(dateStr)}
-                    disabled={!canEdit}
-                    className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium
-                      ${
-                        canEdit
-                          ? 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors'
-                          : 'border-slate-100 text-slate-300 cursor-not-allowed'
-                      }`}
-                  >
-                    <Plus size={16} /> Aggiungi
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-        </>
-      )}
-
-      {/* MONTH VIEW - Mobile optimized */}
-      {viewType === 'month' && (
-        <div>
-          {/* Week day headers */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
-            {WEEK_DAYS.map((day, idx) => (
-              <div key={day} className="text-center text-xs font-semibold text-slate-500 uppercase py-1 sm:py-2">
-                <span className="hidden sm:inline">{day}</span>
-                <span className="sm:hidden">{WEEK_DAYS_SHORT[idx]}</span>
+                      {/* Add Button */}
+                      <button
+                        onClick={() => openAddModal(dateStr)}
+                        disabled={!canEdit}
+                        className={`mt-auto w-full py-2.5 border-2 border-dashed rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium
+                      ${canEdit
+                            ? 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors'
+                            : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                          }`}
+                      >
+                        <Plus size={16} /> Aggiungi
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar grid - Mobile optimized */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {monthDates.map((date, index) => {
-              const dateStr = formatDate(date);
-              const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-              const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
-              const isToday = isSameDay(date, new Date())
-              const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-              const redDay = isRedDay(dateStr, date);
-              const holidayTitle = getHolidayTitle(dateStr);
-              return (
-                <div
-                  key={index}
-                  onClick={() => isCurrentMonth && canEdit && openAddModal(dateStr)}
-                  className={`min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg border transition-all
+            </>
+          )}
+
+          {/* MONTH VIEW - Mobile optimized */}
+          {viewType === 'month' && (
+            <div>
+              {/* Week day headers */}
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+                {WEEK_DAYS.map((day, idx) => (
+                  <div key={day} className="text-center text-xs font-semibold text-slate-500 uppercase py-1 sm:py-2">
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{WEEK_DAYS_SHORT[idx]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid - Mobile optimized */}
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                {monthDates.map((date, index) => {
+                  const dateStr = formatDate(date);
+                  const dayEntries = filteredEntries.filter(e => e.date === dateStr);
+                  const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+                  const isToday = isSameDay(date, new Date())
+                  const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                  const redDay = isRedDay(dateStr, date);
+                  const holidayTitle = getHolidayTitle(dateStr);
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => isCurrentMonth && canEdit && openAddModal(dateStr)}
+                      className={`min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg border transition-all
                     ${canEdit ? 'cursor-pointer' : 'cursor-default'}
                     ${isToday ? 'bg-blue-50 border-blue-300 ring-1 sm:ring-2 ring-blue-200' : 'border-slate-200'}
                     ${isCurrentMonth ? `bg-white ${canEdit ? 'active:shadow-md sm:hover:shadow-md' : ''}` : 'bg-slate-50 opacity-40'}
                     ${redDay && isCurrentMonth ? 'bg-red-50 border-red-200' : ''}
                   `}>
-                  <div className="flex justify-between items-start">
-                      <span className={`text-xs sm:text-sm font-bold ${
-                        isToday
+                      <div className="flex justify-between items-start">
+                        <span className={`text-xs sm:text-sm font-bold ${isToday
                           ? 'text-blue-600'
                           : redDay && isCurrentMonth
                             ? 'text-red-600'
                             : isCurrentMonth
                               ? 'text-slate-700'
                               : 'text-slate-400'
-                      }`}>
-                        {date.getDate()}
-                      </span>
-
-                      {totalHours > 0 && (
-                        <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
-                          {totalHours}h
+                          }`}>
+                          {date.getDate()}
                         </span>
-                      )}
-                    </div>
-                    {isCurrentMonth && holidayTitle && (
-                      <div className="mt-1 text-[10px] sm:text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight">
-                        {holidayTitle}
+
+                        {totalHours > 0 && (
+                          <span className="text-[10px] sm:text-xs font-semibold text-blue-600 bg-blue-50 px-1 sm:px-1.5 py-0.5 rounded">
+                            {totalHours}h
+                          </span>
+                        )}
                       </div>
-                    )}
-
-                  <div className="space-y-0.5 sm:space-y-1">
-                    {dayEntries.slice(0, 2).map(entry => {
-                      const project = projects.find(p => p.id === entry.projectId);
-                      const entryConfig = {
-                        [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
-                        [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
-                        [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
-                        [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
-                      };
-                      const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
-                      const Icon = config.icon;
-
-                      return (
-                        <div
-                          key={entry.id}
-                          className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
-                          style={{ backgroundColor: `${config.bgColor}`, borderLeft: `2px solid ${config.color}` }}
-                        >
-                          {(entry.hours > 0 || entry.permits_hours > 0) && (
-                            <span className="font-medium">
-                              {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
-                            </span>
-                          )}
-
-                          <span className="hidden sm:inline"> {config.label}</span>
+                      {isCurrentMonth && holidayTitle && (
+                        <div className="mt-1 text-[10px] sm:text-[11px] font-semibold text-red-700 whitespace-normal break-words leading-tight">
+                          {holidayTitle}
                         </div>
-                      );
-                    })}
-                    {dayEntries.length > 2 && (
-                      <div className="text-[10px] sm:text-xs text-slate-400 font-medium">
-                        +{dayEntries.length - 2}
+                      )}
+
+                      <div className="space-y-0.5 sm:space-y-1">
+                        {dayEntries.slice(0, 2).map(entry => {
+                          const project = projects.find(p => p.id === entry.projectId);
+                          const entryConfig = {
+                            [EntryType.VACATION]: { icon: Umbrella, label: 'Ferie', color: '#10b981', bgColor: '#d1fae5' },
+                            [EntryType.SICK_LEAVE]: { icon: Stethoscope, label: 'Malattia', color: '#ef4444', bgColor: '#fee2e2' },
+                            [EntryType.PERMIT]: { icon: Clock, label: 'Permesso', color: '#f59e0b', bgColor: '#fef3c7' },
+                            [EntryType.WORK]: { icon: Briefcase, label: project?.name || 'Lavoro', color: project?.color || '#3b82f6', bgColor: '#dbeafe' },
+                          };
+                          const config = entryConfig[entry.entry_type] || entryConfig[EntryType.WORK];
+                          const Icon = config.icon;
+
+                          return (
+                            <div
+                              key={entry.id}
+                              className="text-[10px] sm:text-xs p-0.5 sm:p-1 rounded truncate"
+                              style={{ backgroundColor: `${config.bgColor}`, borderLeft: `2px solid ${config.color}` }}
+                            >
+                              {(entry.hours > 0 || entry.permits_hours > 0) && (
+                                <span className="font-medium">
+                                  {entry.entry_type === EntryType.PERMIT ? entry.permits_hours : entry.hours}h
+                                </span>
+                              )}
+
+                              <span className="hidden sm:inline"> {config.label}</span>
+                            </div>
+                          );
+                        })}
+                        {dayEntries.length > 2 && (
+                          <div className="text-[10px] sm:text-xs text-slate-400 font-medium">
+                            +{dayEntries.length - 2}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-      {/* YEAR VIEW - Mobile optimized */}
-      {viewType === 'year' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {yearMonths.map((monthData) => {
-            const monthEntries = filteredEntries.filter(e => {
-              const entryDate = new Date(e.date);
-              return entryDate.getMonth() === monthData.month && e.hours;
-            });
-            const totalHours = monthEntries.reduce((sum, e) => sum + e.hours, 0);
-            const isCurrentMonth = monthData.month === new Date().getMonth() && monthData.year === new Date().getFullYear();
+          {/* YEAR VIEW - Mobile optimized */}
+          {viewType === 'year' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {yearMonths.map((monthData) => {
+                const monthEntries = filteredEntries.filter(e => {
+                  const entryDate = new Date(e.date);
+                  return entryDate.getMonth() === monthData.month && e.hours;
+                });
+                const totalHours = monthEntries.reduce((sum, e) => sum + e.hours, 0);
+                const isCurrentMonth = monthData.month === new Date().getMonth() && monthData.year === new Date().getFullYear();
 
-            return (
-              <div
-                key={monthData.month}
-                onClick={() => {
-                  setCurrentDate(new Date(monthData.year, monthData.month, 1));
-                  setViewType('month');
-                }}
-                className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer active:shadow-lg sm:hover:shadow-lg touch-manipulation
+                return (
+                  <div
+                    key={monthData.month}
+                    onClick={() => {
+                      setCurrentDate(new Date(monthData.year, monthData.month, 1));
+                      setViewType('month');
+                    }}
+                    className={`p-3 sm:p-4 rounded-xl border transition-all cursor-pointer active:shadow-lg sm:hover:shadow-lg touch-manipulation
                   ${isCurrentMonth ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' : 'bg-white border-slate-200'}
                 `}
-              >
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className={`text-base sm:text-lg font-bold ${isCurrentMonth ? 'text-blue-600' : 'text-slate-700'}`}>
-                    {monthData.name}
-                  </h3>
-                  <CalendarIcon size={16} className="sm:w-[18px] sm:h-[18px] text-slate-400" />
-                </div>
+                  >
+                    <div className="flex justify-between items-center mb-2 sm:mb-3">
+                      <h3 className={`text-base sm:text-lg font-bold ${isCurrentMonth ? 'text-blue-600' : 'text-slate-700'}`}>
+                        {monthData.name}
+                      </h3>
+                      <CalendarIcon size={16} className="sm:w-[18px] sm:h-[18px] text-slate-400" />
+                    </div>
 
-                <div className="mb-2 sm:mb-3">
-                  <div className="text-xl sm:text-2xl font-bold text-slate-900">{totalHours}h</div>
-                  <div className="text-xs text-slate-500">{monthEntries.length} registrazioni</div>
-                </div>
+                    <div className="mb-2 sm:mb-3">
+                      <div className="text-xl sm:text-2xl font-bold text-slate-900">{totalHours}h</div>
+                      <div className="text-xs text-slate-500">{monthEntries.length} registrazioni</div>
+                    </div>
 
-                {/* Mini calendar preview */}
-                <div className="grid grid-cols-7 gap-0.5">
-                  {Array.from({ length: 31 }, (_, i) => {
-                    const day = i + 1;
-                    const dateStr = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const hasEntry = monthEntries.some(e => e.date === dateStr);
+                    {/* Mini calendar preview */}
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const day = i + 1;
+                        const dateStr = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const hasEntry = monthEntries.some(e => e.date === dateStr);
 
-                    try {
-                      const testDate = new Date(monthData.year, monthData.month, day);
-                      if (testDate.getMonth() !== monthData.month) return null;
-                    } catch {
-                      return null;
-                    }
+                        try {
+                          const testDate = new Date(monthData.year, monthData.month, day);
+                          if (testDate.getMonth() !== monthData.month) return null;
+                        } catch {
+                          return null;
+                        }
 
-                    return (
-                      <div
-                        key={day}
-                        className={`w-1.5 h-1.5 rounded-full ${hasEntry ? 'bg-blue-500' : 'bg-slate-200'
-                          }`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-
-      {/* Add Modal - Mobile optimized */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900">Registra Ore</h3>
-                <p className="text-xs text-slate-500">Per il {selectedDateForAdd}</p>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 touch-manipulation p-1"><X size={20} /></button>
+                        return (
+                          <div
+                            key={day}
+                            className={`w-1.5 h-1.5 rounded-full ${hasEntry ? 'bg-blue-500' : 'bg-slate-200'
+                              }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          )}
 
-            <form onSubmit={handleSaveEntry} className="flex flex-col flex-1 overflow-y-auto">
-              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                {/* Entry Type Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2 sm:mb-3">Tipo di Registrazione</label>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, entryType: EntryType.WORK, hours: 4 })}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.WORK
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                        : 'border-slate-200 hover:border-blue-300'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <Briefcase size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.WORK ? 'text-blue-600' : 'text-slate-400'}`} />
-                        <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.WORK ? 'text-blue-900' : 'text-slate-600'}`}>Lavoro</span>
+
+          {/* Add Modal - Mobile optimized */}
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col">
+                <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-semibold text-slate-900">Registra Ore</h3>
+                    <p className="text-xs text-slate-500">Per il {selectedDateForAdd}</p>
+                  </div>
+                  <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 touch-manipulation p-1"><X size={20} /></button>
+                </div>
+
+                <form onSubmit={handleSaveEntry} className="flex flex-col flex-1 overflow-y-auto">
+                  <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    {/* Entry Type Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2 sm:mb-3">Tipo di Registrazione</label>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, entryType: EntryType.WORK, hours: 4 })}
+                          className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.WORK
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                            : 'border-slate-200 hover:border-blue-300'
+                            }`}
+                        >
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Briefcase size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.WORK ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.WORK ? 'text-blue-900' : 'text-slate-600'}`}>Lavoro</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: '' })}
+                          className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.VACATION
+                            ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
+                            : 'border-slate-200 hover:border-green-300'
+                            }`}
+                        >
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Umbrella size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.VACATION ? 'text-green-600' : 'text-slate-400'}`} />
+                            <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.VACATION ? 'text-green-900' : 'text-slate-600'}`}>Ferie</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: '' })}
+                          className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.SICK_LEAVE
+                            ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
+                            : 'border-slate-200 hover:border-red-300'
+                            }`}
+                        >
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Stethoscope size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-600' : 'text-slate-400'}`} />
+                            <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-900' : 'text-slate-600'}`}>Malattia</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: '' })}
+                          className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.PERMIT
+                            ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                            : 'border-slate-200 hover:border-orange-300'
+                            }`}
+                        >
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Clock size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.PERMIT ? 'text-orange-600' : 'text-slate-400'}`} />
+                            <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.PERMIT ? 'text-orange-900' : 'text-slate-600'}`}>Permesso</span>
+                          </div>
+                        </button>
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, entryType: EntryType.VACATION, hours: 8, clientId: '', projectId: '' })}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.VACATION
-                        ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
-                        : 'border-slate-200 hover:border-green-300'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <Umbrella size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.VACATION ? 'text-green-600' : 'text-slate-400'}`} />
-                        <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.VACATION ? 'text-green-900' : 'text-slate-600'}`}>Ferie</span>
+
+                      {/* Days/Hours Remaining Info */}
+                      {formData.entryType === EntryType.VACATION && (
+                        <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
+                          📅 Giorni ferie rimanenti: <strong>{user?.vacation_days_remaining || 0}</strong>
+                        </div>
+                      )}
+                      {formData.entryType === EntryType.SICK_LEAVE && (
+                        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                          🏥 Giorni malattia rimanenti: <strong>{user?.sick_days_remaining || 0}</strong>
+                        </div>
+                      )}
+                      {formData.entryType === EntryType.PERMIT && (
+                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                          ⏰ Ore permesso rimanenti: <strong>{user?.permit_hours_remaining || 0}h</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Client and Project - Only for WORK type */}
+                    {formData.entryType === EntryType.WORK && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                          <select
+                            required
+                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
+                            value={formData.clientId}
+                            onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
+                          >
+                            <option value="">Seleziona cliente...</option>
+                            {filteredClients.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
+                          <select
+                            required
+                            disabled={!formData.clientId}
+                            className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed text-sm touch-manipulation"
+                            value={formData.projectId}
+                            onChange={e => setFormData({ ...formData, projectId: e.target.value })}
+                          >
+                            <option value="">
+                              {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
+                            </option>
+                            {filteredProjects.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Hours Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {formData.entryType === EntryType.PERMIT ? 'Ore Permesso' : 'Durata (Ore)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        max="24"
+                        required
+                        disabled={formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE}
+                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed text-sm touch-manipulation"
+                        value={formData.hours}
+                        onChange={e => setFormData({ ...formData, hours: Number(e.target.value) })}
+                      />
+                      {(formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE) && (
+                        <p className="text-xs text-slate-500 mt-1">Fisso a 8h (1 giorno)</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Descrizione</label>
+                      <textarea
+                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none text-sm touch-manipulation"
+                        placeholder={formData.entryType === EntryType.WORK ? "Su cosa hai lavorato?" : "Note (opzionale)"}
+                        value={formData.description}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Recurrence Section */}
+                    <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-100 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CalendarClock size={16} className="text-slate-500" />
+                        <span className="text-sm font-semibold text-slate-700">Ricorrenza</span>
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, entryType: EntryType.SICK_LEAVE, hours: 8, clientId: '', projectId: '' })}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.SICK_LEAVE
-                        ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
-                        : 'border-slate-200 hover:border-red-300'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <Stethoscope size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-600' : 'text-slate-400'}`} />
-                        <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.SICK_LEAVE ? 'text-red-900' : 'text-slate-600'}`}>Malattia</span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Frequenza</label>
+                          <select
+                            className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
+                            value={formData.recurrence}
+                            onChange={e => setFormData({ ...formData, recurrence: e.target.value as any })}
+                          >
+                            <option value="NONE">Non si ripete</option>
+                            <option value="DAILY">Giornaliero (Lun-Ven)</option>
+                            <option value="WEEKLY">Settimanale</option>
+                          </select>
+                        </div>
+
+                        {formData.recurrence !== 'NONE' && (
+                          <div className="animate-in fade-in slide-in-from-left-2">
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Fino a</label>
+                            <input
+                              type="date"
+                              required
+                              className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
+                              value={formData.recurrenceEnd}
+                              min={selectedDateForAdd}
+                              onChange={e => setFormData({ ...formData, recurrenceEnd: e.target.value })}
+                            />
+                          </div>
+                        )}
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, entryType: EntryType.PERMIT, hours: 4, clientId: '', projectId: '' })}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left touch-manipulation ${formData.entryType === EntryType.PERMIT
-                        ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
-                        : 'border-slate-200 hover:border-orange-300'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <Clock size={16} className={`sm:w-[18px] sm:h-[18px] ${formData.entryType === EntryType.PERMIT ? 'text-orange-600' : 'text-slate-400'}`} />
-                        <span className={`font-medium text-xs sm:text-sm ${formData.entryType === EntryType.PERMIT ? 'text-orange-900' : 'text-slate-600'}`}>Permesso</span>
-                      </div>
-                    </button>
+                    </div>
                   </div>
 
-                  {/* Days/Hours Remaining Info */}
-                  {formData.entryType === EntryType.VACATION && (
-                    <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
-                      📅 Giorni ferie rimanenti: <strong>{user?.vacation_days_remaining || 0}</strong>
-                    </div>
-                  )}
-                  {formData.entryType === EntryType.SICK_LEAVE && (
-                    <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-                      🏥 Giorni malattia rimanenti: <strong>{user?.sick_days_remaining || 0}</strong>
-                    </div>
-                  )}
-                  {formData.entryType === EntryType.PERMIT && (
-                    <div className="mt-2 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                      ⏰ Ore permesso rimanenti: <strong>{user?.permit_hours_remaining || 0}h</strong>
-                    </div>
-                  )}
-                </div>
-
-                {/* Client and Project - Only for WORK type */}
-                {formData.entryType === EntryType.WORK && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
-                      <select
-                        required
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
-                        value={formData.clientId}
-                        onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
-                      >
-                        <option value="">Seleziona cliente...</option>
-                        {filteredClients.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
+                  <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 flex gap-2 sm:gap-3 bg-slate-50 flex-shrink-0">
+                    <Button type="button" variant="outline" className="flex-1 touch-manipulation" onClick={() => setIsModalOpen(false)}>Annulla</Button>
+                    <Button type="submit" className="flex-1 touch-manipulation">Salva Registrazione</Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+          {isConfirmOverwriteOpen && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
+              onMouseDown={(e) => {
+                // chiudi cliccando fuori (opzionale)
+                if (e.target === e.currentTarget) closeConfirmOverwrite();
+              }}
+            >
+              <div
+                ref={confirmDialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="confirm-overwrite-title"
+                aria-describedby="confirm-overwrite-desc"
+                className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
+              >
+                <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700">
+                      <AlertTriangle size={20} />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Progetto</label>
-                      <select
-                        required
-                        disabled={!formData.clientId}
-                        className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed text-sm touch-manipulation"
-                        value={formData.projectId}
-                        onChange={e => setFormData({ ...formData, projectId: e.target.value })}
+                      <h3 id="confirm-overwrite-title" className="text-base sm:text-lg font-semibold text-slate-900">
+                        Sovrascrivere le registrazioni?
+                      </h3>
+
+                      <p
+                        id="confirm-overwrite-desc"
+                        className="text-xs sm:text-sm text-slate-600 mt-1 whitespace-pre-line"
                       >
-                        <option value="">
-                          {formData.clientId ? 'Seleziona progetto...' : 'Prima seleziona un cliente'}
-                        </option>
-                        {filteredProjects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                        Per il {pendingDateStr} risultano già ore registrate (Lavoro o Permesso).
+                        {"\n"}
+                        Inserendo {formData.entryType === EntryType.VACATION ? 'FERIE' : 'MALATTIA'} verranno cancellate.
+                      </p>
                     </div>
-                  </>
-                )}
-
-                {/* Hours Input */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {formData.entryType === EntryType.PERMIT ? 'Ore Permesso' : 'Durata (Ore)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    max="24"
-                    required
-                    disabled={formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE}
-                    className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed text-sm touch-manipulation"
-                    value={formData.hours}
-                    onChange={e => setFormData({ ...formData, hours: Number(e.target.value) })}
-                  />
-                  {(formData.entryType === EntryType.VACATION || formData.entryType === EntryType.SICK_LEAVE) && (
-                    <p className="text-xs text-slate-500 mt-1">Fisso a 8h (1 giorno)</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Descrizione</label>
-                  <textarea
-                    className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none text-sm touch-manipulation"
-                    placeholder={formData.entryType === EntryType.WORK ? "Su cosa hai lavorato?" : "Note (opzionale)"}
-                    value={formData.description}
-                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  />
-                </div>
-
-                {/* Recurrence Section */}
-                <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-100 space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CalendarClock size={16} className="text-slate-500" />
-                    <span className="text-sm font-semibold text-slate-700">Ricorrenza</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Frequenza</label>
-                      <select
-                        className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
-                        value={formData.recurrence}
-                        onChange={e => setFormData({ ...formData, recurrence: e.target.value as any })}
-                      >
-                        <option value="NONE">Non si ripete</option>
-                        <option value="DAILY">Giornaliero (Lun-Ven)</option>
-                        <option value="WEEKLY">Settimanale</option>
-                      </select>
+                  <button
+                    onClick={closeConfirmOverwrite}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                    aria-label="Chiudi"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Dettaglio cosa verrà cancellato */}
+                <div className="px-4 sm:px-6 py-4">
+                  <div className="rounded-lg border border-red-100 bg-red-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-red-900">Registrazioni che verranno rimosse</p>
+                      <span className="text-xs font-semibold text-red-700 bg-white/70 border border-red-200 px-2 py-0.5 rounded">
+                        Totale: {workedTotalHours}h
+                      </span>
                     </div>
 
-                    {formData.recurrence !== 'NONE' && (
-                      <div className="animate-in fade-in slide-in-from-left-2">
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Fino a</label>
-                        <input
-                          type="date"
-                          required
-                          className="w-full rounded-md border-slate-300 border p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none touch-manipulation"
-                          value={formData.recurrenceEnd}
-                          min={selectedDateForAdd}
-                          onChange={e => setFormData({ ...formData, recurrenceEnd: e.target.value })}
-                        />
-                      </div>
+                    {workedEntriesForDate.length === 0 ? (
+                      <p className="text-xs text-red-700 mt-2">Dettaglio non disponibile.</p>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {workedEntriesForDate.map((x) => (
+                          <li
+                            key={x.id}
+                            className="flex items-start justify-between gap-3 rounded-md bg-white/70 border border-red-100 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-800">
+                                {x.label}
+                                <span className="text-slate-500 font-medium">
+                                  {" "}— {x.projectName}
+                                </span>
+                              </p>
+                            </div>
+                            <span className="text-xs font-semibold text-slate-700 shrink-0">
+                              {x.hours}h
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 flex gap-2 sm:gap-3 bg-slate-50 flex-shrink-0">
-                <Button type="button" variant="outline" className="flex-1 touch-manipulation" onClick={() => setIsModalOpen(false)}>Annulla</Button>
-                <Button type="submit" className="flex-1 touch-manipulation">Salva Registrazione</Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {isConfirmOverwriteOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
-          onMouseDown={(e) => {
-            // chiudi cliccando fuori (opzionale)
-            if (e.target === e.currentTarget) closeConfirmOverwrite();
-          }}
-        >
-          <div
-            ref={confirmDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirm-overwrite-title"
-            aria-describedby="confirm-overwrite-desc"
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
-          >
-            <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-start justify-between gap-3">
-              <div className="flex gap-3">
-                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700">
-                  <AlertTriangle size={20} />
-                </div>
-
-                <div>
-                  <h3 id="confirm-overwrite-title" className="text-base sm:text-lg font-semibold text-slate-900">
-                    Sovrascrivere le registrazioni?
-                  </h3>
-
-                  <p
-                    id="confirm-overwrite-desc"
-                    className="text-xs sm:text-sm text-slate-600 mt-1 whitespace-pre-line"
+                {/* Actions */}
+                <div className="px-4 sm:px-6 py-4 border-t border-slate-100 bg-white flex gap-2 sm:gap-3">
+                  <button
+                    ref={confirmCancelBtnRef}
+                    type="button"
+                    className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    onClick={closeConfirmOverwrite}
                   >
-                    Per il {pendingDateStr} risultano già ore registrate (Lavoro o Permesso).
-                    {"\n"}
-                    Inserendo {formData.entryType === EntryType.VACATION ? 'FERIE' : 'MALATTIA'} verranno cancellate.
-                  </p>
+                    Annulla
+                  </button>
+
+                  <button
+                    ref={confirmContinueBtnRef}
+                    type="button"
+                    className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                    onClick={confirmOverwriteAndSave}
+                  >
+                    Continua
+                  </button>
                 </div>
               </div>
-
-              <button
-                onClick={closeConfirmOverwrite}
-                className="text-slate-400 hover:text-slate-600 p-1"
-                aria-label="Chiudi"
-              >
-                <X size={18} />
-              </button>
             </div>
-
-            {/* Dettaglio cosa verrà cancellato */}
-            <div className="px-4 sm:px-6 py-4">
-              <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-red-900">Registrazioni che verranno rimosse</p>
-                  <span className="text-xs font-semibold text-red-700 bg-white/70 border border-red-200 px-2 py-0.5 rounded">
-                    Totale: {workedTotalHours}h
-                  </span>
-                </div>
-
-                {workedEntriesForDate.length === 0 ? (
-                  <p className="text-xs text-red-700 mt-2">Dettaglio non disponibile.</p>
-                ) : (
-                  <ul className="mt-2 space-y-2">
-                    {workedEntriesForDate.map((x) => (
-                      <li
-                        key={x.id}
-                        className="flex items-start justify-between gap-3 rounded-md bg-white/70 border border-red-100 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800">
-                            {x.label}
-                            <span className="text-slate-500 font-medium">
-                              {" "}— {x.projectName}
-                            </span>
-                          </p>
-                        </div>
-                        <span className="text-xs font-semibold text-slate-700 shrink-0">
-                          {x.hours}h
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="px-4 sm:px-6 py-4 border-t border-slate-100 bg-white flex gap-2 sm:gap-3">
-              <button
-                ref={confirmCancelBtnRef}
-                type="button"
-                className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={closeConfirmOverwrite}
-              >
-                Annulla
-              </button>
-
-              <button
-                ref={confirmContinueBtnRef}
-                type="button"
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
-                onClick={confirmOverwriteAndSave}
-              >
-                Continua
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
+
+
+
 
     </div>
-    
+
   );
 };
