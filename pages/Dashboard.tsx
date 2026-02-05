@@ -61,26 +61,29 @@ export const Dashboard: React.FC = () => {
           date: item.day,
           hours: item.hours || 0,
           description: item.description || '',
+          illness: item.illnes || false,
+          holiday: item.holiday || false,
+          permits: item.permits_hours || 0,
           entry_type: getEntryType(item),
         };
 
         const entries = [];
 
         // Entry separata per i permessi (se presenti)
-        if (item.permits_hours !== null && item.permits_hours > 0) {
-          entries.push({
-            id: `${item.id}-permit`, // ID univoco per l'entry del permesso
-            userId: item.employee_id,
-            projectId: item.project_id,
-            date: item.day,
-            hours: 0,
-            description: baseEntry.description,
-            entry_type: EntryType.PERMIT
-          });
-        } else {
+        // if (item.permits_hours !== null && item.permits_hours > 0 ) {
+        //   entries.push({
+        //     id: `${item.id}-permit`, // ID univoco per l'entry del permesso
+        //     userId: item.employee_id,
+        //     projectId: item.project_id,
+        //     date: item.day,
+        //     hours: item.permits_hours,
+        //     description: baseEntry.description,
+        //     entry_type: EntryType.PERMIT
+        //   });
+        //   console.log('entries data',  entries)
+        // } else {
           entries.push(baseEntry);
-        }
-
+        // }
         return entries;
       });
 
@@ -95,11 +98,9 @@ export const Dashboard: React.FC = () => {
     if (user) {
       const month = viewType === 'monthly' ? selectedDate.month : undefined;
       const year = selectedDate.year;
-      
       loadEntries(user.employee_id, user.is_staff, month, year);
     }
   }, [user, viewType, selectedDate, dashboardDisplay]);
-
   // Helper function to convert hours to display unit
   const convertToDisplayUnit = (hours: number): number => {
     return displayUnit === 'days' ? hours / HOURS_PER_DAY : hours;
@@ -116,6 +117,10 @@ export const Dashboard: React.FC = () => {
   // Compute KPIs
   const kpis = useMemo(() => {
     const totalHours = entries.reduce((acc, curr) => acc + curr.hours, 0);
+    const permitsEntries = entries.filter(entry => entry.entry_type == "PERMIT")
+    const holidayHours = entries.filter(entry => entry.entry_type == "VACATION").length * HOURS_PER_DAY
+    const sickHours = entries.filter(entry => entry.entry_type == "SICK_LEAVE").length * HOURS_PER_DAY
+    const permitsHours = permitsEntries.reduce((acc, curr) => acc + curr.permits, 0);
     const activeProjectCount = new Set(entries.map(e => e.projectId)).size;
     const activeUsersCount = new Set(entries.map(e => e.userId)).size;
 
@@ -174,11 +179,14 @@ export const Dashboard: React.FC = () => {
       activeUsersCount,
       chartData,
       trendData,
-      avgDailyHours
+      avgDailyHours,
+      permitsHours,
+      holidayHours,
+      sickHours
     };
   }, [entries, projects, viewType, selectedDate]);
 
-  console.log('kpis', user)
+
   const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
     <Card className="border-l-4 hover:shadow-lg transition-shadow" style={{ borderLeftColor: color }}>
       <div className="p-6 flex items-center justify-between">
@@ -464,21 +472,21 @@ export const Dashboard: React.FC = () => {
         )}
           <StatCard
             title="Ferie"
-            value={user.vacation_days_remaining}
+            value={formatHours(kpis.holidayHours, true)}
             subtitle={`${user.vacation_days_total}g totali`}
             icon={Umbrella}
             color="#16a34a"
           />
           <StatCard
             title="Permessi"
-            value={user.permit_hours_used}
+            value={formatHours(kpis.permitsHours, true)}
             subtitle={`${user.permit_hours_total}h totali`}
             icon={Clock}
             color="#d97706"
           />
           <StatCard
             title="Malattie"
-            value={user.sick_days_remaining}
+            value={formatHours(kpis.sickHours, true)}
             subtitle={`${user.sick_days_total}g totali`}
             icon={Stethoscope}
             color="#dc2626"
