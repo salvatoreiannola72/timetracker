@@ -428,6 +428,10 @@ export const Timesheet: React.FC = () => {
     }
   };
 
+  const activeUsers = useMemo(() => {
+    return users.filter(u => u.is_active);
+  }, [users]);
+
   const workedEntriesForDate = useMemo(() => {
     if (!pendingDateStr) return [];
 
@@ -536,7 +540,7 @@ export const Timesheet: React.FC = () => {
           {user.is_staff && (
             <select value={selectedUser} onChange={(e) => setSelectedUser(Number(e.target.value))} className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option value="">Seleziona un dipendente...</option>
-              {users.map(u => (
+              {activeUsers.map(u => (
                 <option key={u.id} value={u.employee_id}>{u.name} {u.surname}</option>
               ))}
             </select>
