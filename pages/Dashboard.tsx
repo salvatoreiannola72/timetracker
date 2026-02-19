@@ -121,7 +121,7 @@ export const Dashboard: React.FC = () => {
     const holidayHours = entries.filter(entry => entry.entry_type == "VACATION").length * HOURS_PER_DAY
     const sickHours = entries.filter(entry => entry.entry_type == "SICK_LEAVE").length * HOURS_PER_DAY
     const permitsHours = permitsEntries.reduce((acc, curr) => acc + curr.permits, 0);
-    const activeProjectCount = new Set(entries.map(e => e.projectId)).size;
+    const activeProjectCount = new Set(entries.filter(e => e.projectId !== null && e.projectId !== undefined && e.projectId !== '').map(e => e.projectId)).size;
     const activeUsersCount = new Set(entries.map(e => e.userId)).size;
 
     // Chart Data: Hours per Project
