@@ -12,6 +12,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { on } from 'events';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -132,7 +133,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                       </div>
                       <button
                         onClick={() => {
-                          console.log('Go to profile');
+                          onNavigate('profile');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >

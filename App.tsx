@@ -10,6 +10,7 @@ import { Timesheet } from './pages/Timesheet';
 import { Projects } from './pages/Projects';
 import { Reports } from './pages/Reports';
 import { supabase } from './lib/supabase';
+import Profile from './pages/Profile';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, loading } = useStore();
@@ -82,6 +83,7 @@ const AppContent: React.FC = () => {
       case 'timesheet': return <Timesheet />;
       case 'projects': return <Projects />;
       case 'reports': return <Reports />;
+      case 'profile': return <Profile />;
       default: return <Dashboard />;
     }
   };
