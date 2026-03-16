@@ -276,7 +276,8 @@ export const Timesheet: React.FC = () => {
   }, [projects, formData.clientId]);
 
   const filteredClients = useMemo(() => {
-    return clients.filter(c => c.active);
+    const activeProjectClients = new Set(projects.filter(p => p.active).map(p => p.customer));
+    return clients.filter(c => c.active && activeProjectClients.has(c.id));
   }, [projects]);
 
   const handlePrev = () => {
