@@ -349,6 +349,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const addUser = async (newUser: Partial<User>) => {
+    // API / Supabase / update stato locale
+  };
+
+  const updateUser = async (updatedUser: User) => {
+  // chiamata API / supabase / update stato locale
+  };
+
   const addEntry = async (
     entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>
   ) => {
@@ -519,6 +527,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addClient,
       updateClient,
       deleteClient,
+      addUser,
+      updateUser,
       isAuthenticated: !!user,
       loading
     }}>

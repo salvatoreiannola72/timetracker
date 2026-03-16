@@ -7,7 +7,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Timesheet } from './pages/Timesheet';
-import { Projects } from './pages/Projects';
+import { Anagrafiche } from './pages/Anagrafiche';
 import { Reports } from './pages/Reports';
 import { supabase } from './lib/supabase';
 
@@ -72,7 +72,7 @@ const AppContent: React.FC = () => {
 
   const renderPage = () => {
     // Route guards: prevent collaborators from accessing admin-only pages
-    if (user?.role === 'COLLABORATOR' && (page === 'projects' || page === 'reports')) {
+    if (user?.role === 'COLLABORATOR' && (page === 'anagrafiche' || page === 'reports')) {
       setPage('dashboard');
       return <Dashboard />;
     }
@@ -80,7 +80,7 @@ const AppContent: React.FC = () => {
     switch (page) {
       case 'dashboard': return <Dashboard />;
       case 'timesheet': return <Timesheet />;
-      case 'projects': return <Projects />;
+      case 'anagrafiche': return <Anagrafiche />;
       case 'reports': return <Reports />;
       default: return <Dashboard />;
     }

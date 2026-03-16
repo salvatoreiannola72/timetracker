@@ -93,7 +93,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               <NavLink page="timesheet" icon={Calendar} label="Timesheet" />
               {user.is_staff && (
                 <>
-                  <NavLink page="projects" icon={Briefcase} label="Progetti" />
+                  <NavLink page="anagrafiche" icon={Briefcase} label="Anagrafiche" />
                   <NavLink page="reports" icon={PieChart} label="Report" />
                 </>
               )}
@@ -160,7 +160,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           <MobileNavItem page="timesheet" icon={Calendar} label="Timesheet" />
           {user.is_staff && (
             <>
-              <MobileNavItem page="projects" icon={Briefcase} label="Progetti" />
+              <MobileNavItem page="anagrafiche" icon={Briefcase} label="Anagrafiche" />
               <MobileNavItem page="reports" icon={PieChart} label="Report" />
             </>
           )}
