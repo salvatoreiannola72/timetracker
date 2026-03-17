@@ -159,7 +159,7 @@ export const Reports: React.FC = () => {
     > = {};
 
     users.forEach((u) => {
-      data[u.id] = { user: u, totalHours: 0, projects: {} };
+      data[u.employee_id] = { user: u, totalHours: 0, projects: {} };
     });
 
     const entryTypeMap: Record<EntryType, { color: string; label: string }> = {
