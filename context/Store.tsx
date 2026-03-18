@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Client, Project, TimesheetEntry, AppState, EntryType } from '../types';
+import { User, Client, Project, TimesheetEntry, AppState, EntryType, UserFormData } from '../types';
 import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
 import { AuthService } from '@/services/auth';
@@ -7,11 +7,11 @@ import { EmployeesService } from '@/services/employees'
 import { CustomersService } from '@/services/customers';
 import { ProjectsService } from '@/services/projects';
 import { TimesheetsService, Timesheet, WorkHour } from '@/services/timesheets';
+import { UsersService } from '@/services/users'
 
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   addEntry: (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => Promise<void>;
@@ -22,6 +22,8 @@ interface StoreContextType extends AppState {
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   updateClient: (client: Client) => Promise<void>;
   deleteClient: (id: number) => Promise<void>;
+  addUser: (user: UserFormData) => Promise<void>;
+  updateUser: (user: User & { password?: string }) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -86,6 +88,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         employee_id: employeeData?.id,
         hire_date: employeeData?.hire_date,
         job_title: employeeData?.job_title,
+        company: employeeData?.company,
         // Leave tracking - default values for now, will be from DB later
         vacation_days_total: 22,
         vacation_days_used: 0,
@@ -135,6 +138,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           employee_id: u.id,
           hire_date: u.hire_date,
           job_title: u.job_title,
+          company: u.company,
           // Leave tracking - default values for now, will be from DB later
           vacation_days_total: 22,
           vacation_days_used: 0,
@@ -205,73 +209,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const signUp = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      // First create Supabase auth user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Sign up error:', error);
-        return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        // Split name into first and last
-        const nameParts = name.trim().split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        // Create auth_user record
-        const { data: authUser, error: authUserError } = await supabase
-          .from('auth_user')
-          .insert({
-            username: email.split('@')[0],
-            email: email,
-            first_name: firstName,
-            last_name: lastName,
-            password: 'managed_by_supabase_auth', // Placeholder
-            is_staff: false,
-            is_superuser: false,
-            is_active: true,
-          })
-          .select()
-          .single();
-
-        if (authUserError) {
-          console.error('Error creating auth_user:', authUserError);
-          return { success: false, error: 'Failed to create user profile' };
-        }
-
-        // Create employee record
-        const { error: employeeError } = await supabase
-          .from('employees_employee')
-          .insert({
-            user_id: authUser.id,
-            hire_date: null,
-            job_title: null,
-          });
-
-        if (employeeError) {
-          console.error('Error creating employee:', employeeError);
-          return { success: false, error: 'Failed to create employee profile' };
-        }
-
-        // If immediately logged in (no email confirmation)
-        if (data.session) {
-          await loadUserProfile(data.user.id);
-        }
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Sign up error:', error);
-      return { success: false, error: error.message || 'Registration failed' };
-    }
-  };
-
   const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -310,7 +247,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addClient = async (client: Omit<Client, 'id'>) => {
     try {
-      const data = await CustomersService.addCustomer(client.name);
+      const data = await CustomersService.addCustomer(client.name, client.company);
 
       if (!data) throw new Error('Client not created');
 
@@ -325,7 +262,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateClient = async (client: Client) => {
     try {
-      const data = await CustomersService.updateCustomer(client.id, client.name, client.active);
+      const data = await CustomersService.updateCustomer(client.id, client.name, client.active, client.company);
 
       if (!data) throw new Error('Client not updated');
 
@@ -349,12 +286,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addUser = async (newUser: Partial<User>) => {
-    // API / Supabase / update stato locale
+  const addUser = async (newUser: UserFormData) => {
+    console.log("newUser", newUser)
+    try {
+      const created = await UsersService.addUser(newUser);
+      const mappedUser = mapApiUserToStoreUser(created);
+
+      setUsers(prev => [...prev, mappedUser]);
+    } catch (error) {
+      console.error('Error adding user:', error);
+      throw error;
+    }
   };
 
-  const updateUser = async (updatedUser: User) => {
-  // chiamata API / supabase / update stato locale
+  const mapApiUserToStoreUser = (u: any): User => ({
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    name: formatUserName(u.first_name, u.last_name),
+    is_staff: u.is_staff,
+    is_superuser: u.is_superuser,
+    is_active: u.is_active,
+    employee_id: u.employee_id,
+    hire_date: u.hire_date,
+    job_title: u.job_title,
+    company: u.company,
+    vacation_days_total: 22,
+    vacation_days_used: 0,
+    vacation_days_remaining: 22,
+    sick_days_total: 180,
+    sick_days_used: 0,
+    sick_days_remaining: 180,
+    permit_hours_total: 32,
+    permit_hours_used: 0,
+    permit_hours_remaining: 32,
+  });
+
+  const updateUser = async (updatedUser: User & { password?: string }) => {
+    try {
+      const payload = {
+        username: updatedUser.username,
+        email: updatedUser.email,
+        first_name: updatedUser.first_name,
+        last_name: updatedUser.last_name,
+        ...(updatedUser.password ? { password: updatedUser.password } : {}),
+        is_staff: updatedUser.is_staff,
+        is_superuser: updatedUser.is_superuser,
+        is_active: updatedUser.is_active,
+        hire_date: updatedUser.hire_date ?? null,
+        job_title: updatedUser.job_title ?? null,
+        company: updatedUser.company,
+      };
+
+      const updated = await UsersService.updateUser(updatedUser.id, payload);
+      const mappedUser = mapApiUserToStoreUser(updated);
+
+      setUsers(prev => prev.map(u => (u.id === mappedUser.id ? mappedUser : u)));
+
+      if (user?.id === mappedUser.id) {
+        setUser(mappedUser);
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   };
 
   const addEntry = async (
@@ -516,7 +513,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       entries,
       login,
       logout,
-      signUp,
       resetPassword,
       updatePassword,
       addEntry,

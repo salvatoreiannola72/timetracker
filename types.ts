@@ -30,6 +30,7 @@ export interface User {
   employee_id?: number;
   hire_date?: string | null;
   job_title?: string | null;
+  company?: number;
   // Leave tracking
   vacation_days_total: number;
   vacation_days_used: number;
@@ -42,11 +43,28 @@ export interface User {
   permit_hours_remaining: number;
 }
 
+export interface UserFormData {
+  id?: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  password?: string;
+  is_staff: boolean;
+  is_superuser: boolean;
+  is_active: boolean;
+  employee_id?: number;
+  hire_date?: string | null;
+  job_title?: string | null;
+  company: number;
+}
+
 // Client type (alias for Customer)
 export interface Client {
   id: number;
   name: string;
   active: boolean;
+  company: number;
 }
 
 // Project with customer_id

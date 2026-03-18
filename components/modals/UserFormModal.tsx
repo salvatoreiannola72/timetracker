@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Button } from "../Button";
 
@@ -8,6 +8,10 @@ interface UserForm {
   email: string;
   username: string;
   job_title: string;
+  hire_date: string;
+  is_staff: boolean;
+  password: string;
+  confirm_password: string;
 }
 
 interface UserFormModalProps {
@@ -19,6 +23,24 @@ interface UserFormModalProps {
   onClose: () => void;
 }
 
+const JOB_TITLE_OPTIONS = [
+  { value: "", label: "Seleziona ruolo (opzionale)" },
+  { value: "SE", label: "Software Engineer" },
+  { value: "FE", label: "Frontend Engineer" },
+  { value: "BE", label: "Backend Engineer" },
+  { value: "QA", label: "Quality Assurance" },
+  { value: "PM", label: "Project Manager" },
+  { value: "DM", label: "Development Manager" },
+  { value: "SM", label: "Scrum Master" },
+  { value: "UX", label: "User Experience Designer" },
+  { value: "DS", label: "Data Scientist" },
+  { value: "DA", label: "Data Analyst" },
+  { value: "HR", label: "Human Resource" },
+];
+
+const buildDefaultPassword = (firstName: string, lastName: string) =>
+  `${firstName}${lastName}`.replace(/\s+/g, "");
+
 export const UserFormModal: React.FC<UserFormModalProps> = ({
   open,
   mode,
@@ -27,6 +49,49 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   onSubmit,
   onClose,
 }) => {
+  const passwordTouchedRef = useRef(false);
+  const confirmPasswordTouchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      passwordTouchedRef.current = false;
+      confirmPasswordTouchedRef.current = false;
+      return;
+    }
+
+    if (mode !== "create") return;
+    if (passwordTouchedRef.current || confirmPasswordTouchedRef.current) return;
+
+    const generatedPassword = buildDefaultPassword(form.first_name, form.last_name);
+
+    onChange({
+      ...form,
+      password: generatedPassword,
+      confirm_password: generatedPassword,
+    });
+  }, [open, mode, form.first_name, form.last_name]);
+
+  const handlePasswordChange = (value: string) => {
+    passwordTouchedRef.current = true;
+    onChange({ ...form, password: value });
+  };
+
+  const handleConfirmPasswordChange = (value: string) => {
+    confirmPasswordTouchedRef.current = true;
+    onChange({ ...form, confirm_password: value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (mode === "create" && form.password !== form.confirm_password) {
+      alert("Password e conferma password non coincidono.");
+      return;
+    }
+
+    onSubmit(e);
+  };
+
   if (!open) return null;
 
   return (
@@ -46,7 +111,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Nome
@@ -57,7 +122,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               onChange={(e) =>
                 onChange({ ...form, first_name: e.target.value })
               }
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-lg"
               placeholder="Nome"
               required
             />
@@ -73,7 +138,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               onChange={(e) =>
                 onChange({ ...form, last_name: e.target.value })
               }
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border rounded-lg"
               placeholder="Cognome"
               required
             />
@@ -87,24 +152,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               type="email"
               value={form.email}
               onChange={(e) => onChange({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="email@dominio.it"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Username
-            </label>
-            <input
-              type="text"
-              value={form.username}
-              onChange={(e) =>
-                onChange({ ...form, username: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="username"
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="Email"
               required
             />
           </div>
@@ -113,24 +162,100 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Ruolo / Job title
             </label>
-            <input
-              type="text"
+            <select
               value={form.job_title}
               onChange={(e) =>
                 onChange({ ...form, job_title: e.target.value })
               }
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="es. Frontend Developer"
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              {JOB_TITLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Hire date
+            </label>
+            <input
+              type="date"
+              value={form.hire_date}
+              onChange={(e) =>
+                onChange({ ...form, hire_date: e.target.value })
+              }
+              className="w-full px-3 py-2 border rounded-lg"
             />
           </div>
 
+          <div className="flex items-center gap-3">
+            <input
+              id="is_staff"
+              type="checkbox"
+              checked={form.is_staff}
+              onChange={(e) =>
+                onChange({ ...form, is_staff: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            <label htmlFor="is_staff" className="text-sm font-medium text-slate-700">
+              Utente staff
+            </label>
+          </div>
+
+          {mode === "create" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={form.username}
+                  onChange={(e) =>
+                    onChange({ ...form, username: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Username"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="text"
+                  value={form.password}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Password"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Conferma password
+                </label>
+                <input
+                  type="text"
+                  value={form.confirm_password}
+                  onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Conferma password"
+                  required
+                />
+              </div>
+            </>
+          )}
+
           <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Annulla
             </Button>
 
