@@ -9,9 +9,7 @@ import {
   Edit2,
   ToggleLeft,
   ToggleRight,
-  Plus,
 } from "lucide-react";
-import { Button } from "../Button";
 
 interface TeamTabContentProps {
   users: User[];
@@ -19,6 +17,25 @@ interface TeamTabContentProps {
   onEditUser: (user: User) => void;
   onToggleUser: (user: User) => void;
 }
+
+const JOB_TITLE_MAP: Record<string, string> = {
+  SE: "Software Engineer",
+  FE: "Frontend Engineer",
+  BE: "Backend Engineer",
+  QA: "Quality Assurance",
+  PM: "Project Manager",
+  DM: "Development Manager",
+  SM: "Scrum Master",
+  UX: "User Experience Designer",
+  DS: "Data Scientist",
+  DA: "Data Analyst",
+  HR: "Human Resource",
+};
+
+const getJobTitleLabel = (jobTitle?: string | null) => {
+  if (!jobTitle) return "Collaboratore";
+  return JOB_TITLE_MAP[jobTitle] || jobTitle;
+};
 
 export const TeamTabContent: React.FC<TeamTabContentProps> = ({
   users,
@@ -40,11 +57,6 @@ export const TeamTabContent: React.FC<TeamTabContentProps> = ({
             ? "Prova con un altro termine di ricerca"
             : "Non ci sono collaboratori da mostrare"}
         </p>
-        {!searchQuery && (
-          <Button onClick={onEditUser} icon={<Plus size={18} />}>
-            Crea Collaboratore
-          </Button>
-        )}
       </div>
     );
   }
@@ -97,7 +109,7 @@ export const TeamTabContent: React.FC<TeamTabContentProps> = ({
               <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full max-w-full">
                 <Briefcase size={14} className="text-slate-600 shrink-0" />
                 <span className="text-sm font-medium text-slate-700 truncate">
-                  {member.job_title || "Collaboratore"}
+                  {getJobTitleLabel(member.job_title)}
                 </span>
               </div>
             </div>

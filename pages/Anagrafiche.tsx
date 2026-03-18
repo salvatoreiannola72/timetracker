@@ -13,6 +13,10 @@ import { ProjectFormModal } from "../components/modals/ProjectFormModal";
 import { ConfirmToggleModal } from "../components/modals/ConfirmToggleModal";
 import { UserFormModal } from "../components/modals/UserFormModal";
 
+import { useToast } from "../hooks/useToast";
+import { Toast } from "../components/ui/Toast";
+import { parseApiError } from "../utils/errorParser";
+
 type Tab = "clients" | "projects" | "team";
 
 export const Anagrafiche: React.FC = () => {
@@ -31,6 +35,7 @@ export const Anagrafiche: React.FC = () => {
 
   const [tab, setTab] = useState<Tab>("clients");
   const [search, setSearch] = useState("");
+  const { toast, showToast } = useToast();
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -54,6 +59,10 @@ export const Anagrafiche: React.FC = () => {
     email: "",
     username: "",
     job_title: "",
+    hire_date: "",
+    is_staff: false,
+    password: "",
+    confirm_password: "",
   });
 
   const [projectModalOpen, setProjectModalOpen] = useState(false);
@@ -122,6 +131,7 @@ export const Anagrafiche: React.FC = () => {
         member.email,
         member.username,
         member.job_title,
+        member.company
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q))
@@ -130,26 +140,37 @@ export const Anagrafiche: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await addUser({
+        username: userForm.username,
+        email: userForm.email,
+        first_name: userForm.first_name,
+        last_name: userForm.last_name,
+        password: userForm.password,
+        is_staff: userForm.is_staff,
+        is_superuser: false,
+        is_active: true,
+        hire_date: userForm.hire_date || null,
+        job_title: userForm.job_title || null,
+        company: user.company,
+      });
 
-    await addUser({
-      first_name: userForm.first_name,
-      last_name: userForm.last_name,
-      name: `${userForm.first_name} ${userForm.last_name}`.trim(),
-      email: userForm.email,
-      username: userForm.username,
-      job_title: userForm.job_title || null,
-      is_active: true,
-    });
-
-    setUserModalOpen(false);
-    setSelectedUser(null);
-    setUserForm({
-      first_name: "",
-      last_name: "",
-      email: "",
-      username: "",
-      job_title: "",
-    });
+      setUserModalOpen(false);
+      showToast("Utente creato con successo", "success");
+      
+      setSelectedUser(null);
+      setUserForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        username: "",
+        job_title: "",
+        hire_date: "",
+        is_staff: false
+      });
+    } catch (error) {
+      showToast(parseApiError(error), "error");
+    }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -183,9 +204,10 @@ export const Anagrafiche: React.FC = () => {
 
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     await addClient({
       name: clientForm.name,
+      company: user.company,
     });
 
     setClientModalOpen(false);
@@ -209,26 +231,36 @@ export const Anagrafiche: React.FC = () => {
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
+    
+    try {
+      await updateUser({
+        ...selectedUser,
+        first_name: userForm.first_name,
+        last_name: userForm.last_name,
+        name: `${userForm.first_name} ${userForm.last_name}`.trim(),
+        email: userForm.email,
+        username: userForm.username,
+        job_title: userForm.job_title || null,
+        hire_date: userForm.hire_date || null,
+        is_staff: userForm.is_staff
+      });
 
-    await updateUser({
-      ...selectedUser,
-      first_name: userForm.first_name,
-      last_name: userForm.last_name,
-      name: `${userForm.first_name} ${userForm.last_name}`.trim(),
-      email: userForm.email,
-      username: userForm.username,
-      job_title: userForm.job_title || null,
-    });
-
-    setUserModalOpen(false);
-    setSelectedUser(null);
-    setUserForm({
-      first_name: "",
-      last_name: "",
-      email: "",
-      username: "",
-      job_title: "",
-    });
+      setUserModalOpen(false);
+      showToast("Utente aggiornato", "success");
+      setSelectedUser(null);
+      setUserForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        username: "",
+        job_title: "",
+        hire_date: "",
+        is_staff: false
+      });
+      
+    } catch (error) {
+      showToast(parseApiError(error), "error");
+    }
   };
 
   const openCreateUser = () => {
@@ -252,6 +284,8 @@ export const Anagrafiche: React.FC = () => {
       email: member.email || "",
       username: member.username || "",
       job_title: member.job_title || "",
+      hire_date: member.hire_date || "",
+      is_staff: member.is_staff ?? false,
     });
     setUserModalMode("edit");
     setUserModalOpen(true);
@@ -604,6 +638,7 @@ export const Anagrafiche: React.FC = () => {
           setSelectedUser(null);
         }}
       />
+      {toast && <Toast message={toast.message} type={toast.type} />}  
     </div>
   );
 };
