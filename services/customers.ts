@@ -22,9 +22,8 @@ export class CustomersService {
         }
     }
 
-    static async addCustomer(name: string): Promise<any> {
+    static async addCustomer(name: string, company: number): Promise<any> {
         const token = AuthService.getAccessToken();
-
         try {
             const response = await fetch(
                 `${backendUrl}/api/customers/`,
@@ -34,7 +33,7 @@ export class CustomersService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name }),
+                    body: JSON.stringify({ name, company }),
                 }
             );
             const data = await response.json();
@@ -65,7 +64,7 @@ export class CustomersService {
         }
     }
 
-    static async updateCustomer(id: number, name: string, active: boolean): Promise<any> {
+    static async updateCustomer(id: number, name: string, active: boolean, company: number): Promise<any> {
         const token = AuthService.getAccessToken();
 
         try {
@@ -77,7 +76,7 @@ export class CustomersService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name, active: active }),
+                    body: JSON.stringify({ name, active: active , company}),
                 }
             );
             const data = await response.json();
