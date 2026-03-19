@@ -82,22 +82,24 @@ export const TeamTabContent: React.FC<TeamTabContentProps> = ({
               >
                 <Edit2 size={16} />
               </button>
-
+              
               <button
-                onClick={() => onToggleUser(member)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  member.is_active
-                    ? "text-blue-700 hover:text-blue-800 hover:bg-blue-100"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-                }`}
-                title={member.is_active ? "Disattiva" : "Attiva"}
-                type="button"
-              >
-                {member.is_active ? (
-                  <ToggleRight size={24} />
-                ) : (
-                  <ToggleLeft size={24} />
-                )}
+                  onClick={() => !member.is_staff && onToggleUser(member)}
+                  disabled={member.is_staff}
+                  className={`peer p-1.5 rounded-lg transition-colors ${
+                    member.is_staff
+                      ? "text-slate-300 cursor-not-allowed opacity-50"
+                      : member.is_active
+                      ? "text-blue-700 hover:text-blue-800 hover:bg-blue-100"
+                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                  }`}
+                  type="button"
+                >
+                  {member.is_active ? (
+                    <ToggleRight size={24} />
+                  ) : (
+                    <ToggleLeft size={24} />
+                  )}
               </button>
             </div>
 
@@ -119,22 +121,6 @@ export const TeamTabContent: React.FC<TeamTabContentProps> = ({
                 <Mail size={14} className="text-slate-400 shrink-0" />
                 <span className="truncate">{member.email}</span>
               </div>
-
-              <div className="flex items-center gap-2 min-w-0">
-                <UserCircle2 size={14} className="text-slate-400 shrink-0" />
-                <span className="truncate">@{member.username}</span>
-              </div>
-
-              {member.employee_id && (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-400 text-xs font-semibold w-4 shrink-0">
-                    #
-                  </span>
-                  <span className="truncate">
-                    ID dipendente: {member.employee_id}
-                  </span>
-                </div>
-              )}
 
               {member.hire_date && (
                 <div className="flex items-center gap-2 min-w-0">
