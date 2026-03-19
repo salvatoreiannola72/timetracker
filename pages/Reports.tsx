@@ -39,8 +39,7 @@ export const Reports: React.FC = () => {
 
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
 
-  const { displayUnit, setDisplayUnit, formatHours } =
-      useDisplayUnit();
+  const { displayUnit, setDisplayUnit, formatHours } = useDisplayUnit();
 
   const loadTimesheets = async (month?: number, year?: number) => {
     const data = await TimesheetsService.getTimesheetEntries(
@@ -619,8 +618,8 @@ export const Reports: React.FC = () => {
                                 {projData.project.name}
                               </span>
                               <span className="text-slate-500 ml-2 flex-shrink-0">
-                                {formatHours(projData.hours, true)}
-                                ({percentage}%)
+                                {formatHours(projData.hours, true)}({percentage}
+                                %)
                               </span>
                             </div>
                             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -660,8 +659,8 @@ export const Reports: React.FC = () => {
                                     </span>
                                     <span className="text-slate-400">·</span>
                                     <span className="text-slate-500 flex-shrink-0">
-                                      {formatHours(hours, true)}
-                                      ({userPercentage}%)
+                                      {formatHours(hours, true)}(
+                                      {userPercentage}%)
                                     </span>
                                   </div>
                                 );
@@ -697,13 +696,40 @@ export const Reports: React.FC = () => {
                         {item.user.last_name?.[0]?.toUpperCase()}
                       </span>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900">
-                        {item.user.name}
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        {item.user.email}
-                      </p>
+                    <div className="flex gap-8">
+                      <div>
+                        <h3 className="font-bold text-slate-900">
+                          {item.user.name}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          {item.user.email}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 ">
+                        {Object.entries(item.projects)
+                          .filter(([key]) =>
+                            ["SICK_LEAVE", "PERMIT", "VACATION"].includes(key),
+                          )
+                          .map(([key, proj]: any, idx) => (
+                            <div
+                              key={idx}
+                              className="flex gap-3 bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <div
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: proj.color }}
+                                />
+                                <span className="text-sm font-medium text-slate-700 truncate">
+                                  {proj.name}
+                                </span>
+                              </div>
+                              <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
+                                {formatHours(proj.hours, true)}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -731,25 +757,32 @@ export const Reports: React.FC = () => {
                     className={`px-4 pb-6 sm:pl-[5rem] animate-in fade-in duration-200 ${!isExpanded ? "hidden md:block" : "block"}`}
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {Object.values(item.projects).map((proj: any, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <div
-                              className="w-3 h-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: proj.color }}
-                            />
-                            <span className="text-sm font-medium text-slate-700 truncate">
-                              {proj.name}
+                      {Object.entries(item.projects)
+                        .filter(
+                          ([key]) =>
+                            !["SICK_LEAVE", "PERMIT", "VACATION"].includes(
+                              key,
+                            ),
+                        )
+                        .map(([key, proj]: any, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: proj.color }}
+                              />
+                              <span className="text-sm font-medium text-slate-700 truncate">
+                                {proj.name}
+                              </span>
+                            </div>
+                            <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
+                              {formatHours(proj.hours, true)}
                             </span>
                           </div>
-                          <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
-                            {formatHours(proj.hours, true)}
-                          </span>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 )}
@@ -827,8 +860,8 @@ export const Reports: React.FC = () => {
                                   {userData.user.name}
                                 </span>
                                 <span className="text-slate-500">
-                                  {formatHours(userData.hours, true)}
-                                  ({percentage}%)
+                                  {formatHours(userData.hours, true)}(
+                                  {percentage}%)
                                 </span>
                               </div>
                               <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
