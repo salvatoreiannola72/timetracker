@@ -83,8 +83,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               onClick={() => onNavigate('dashboard')}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <img src="/edgeworks.png" alt="Edgeworks" className="h-8 w-auto" />
-              <span className="font-semibold text-slate-800">Edgeworks</span>
+              <img src="/timetracker.png" alt="Timetracker" className="h-14 w-auto" />
+              <span className="font-semibold text-slate-800">{user.company_name}</span>
             </button>
 
             {/* Desktop Navigation */}

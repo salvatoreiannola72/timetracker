@@ -50,7 +50,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <img src="/edgeworks.png" alt="Edgeworks" className="h-16 w-auto mx-auto mb-4 animate-pulse" />
+          <img src="/timetracker.png" alt="Edgeworks" className="h-16 w-auto mx-auto mb-4 animate-pulse" />
           <p className="text-slate-600">Caricamento...</p>
         </div>
       </div>
