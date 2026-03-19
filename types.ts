@@ -31,6 +31,7 @@ export interface User {
   hire_date?: string | null;
   job_title?: string | null;
   company?: number;
+  company_name?: string | null;
   // Leave tracking
   vacation_days_total: number;
   vacation_days_used: number;

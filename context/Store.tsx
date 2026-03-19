@@ -89,6 +89,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         hire_date: employeeData?.hire_date,
         job_title: employeeData?.job_title,
         company: employeeData?.company,
+        company_name: employeeData?.company_name,
         // Leave tracking - default values for now, will be from DB later
         vacation_days_total: 22,
         vacation_days_used: 0,
