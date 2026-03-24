@@ -4,7 +4,6 @@ import { Button } from '../components/Button';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock, AlertTriangle } from 'lucide-react';
 import { EntryType, Timesheet as TimesheetEntry } from '../types';
 import { TimesheetsService } from '@/services/timesheets';
-import { time } from 'console';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -26,11 +25,6 @@ export const Timesheet: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
-  const [loadedPeriod, setLoadedPeriod] = useState<{
-    month?: number,
-    year: number,
-    type: 'month' | 'year'
-  } | null>(null);
   const [holidayByDate, setHolidayByDate] = useState<Map<string, string>>(new Map());
   const [isConfirmOverwriteOpen, setIsConfirmOverwriteOpen] = useState(false);
   const [pendingDateStr, setPendingDateStr] = useState<string | null>(null);
@@ -47,6 +41,41 @@ export const Timesheet: React.FC = () => {
 
   const getHolidayTitle = (dateStr: string) => {
     return holidayByDate.get(dateStr) || null;
+  };
+
+  // Calculate Start of Week (Monday)
+  const startOfWeek = useMemo(() => {
+    const d = new Date(currentDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  }, [currentDate]);
+
+  // Generate Week Dates
+  const weekDates = useMemo(() => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      dates.push(d);
+    }
+    return dates;
+  }, [startOfWeek]);
+
+  const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const reloadCurrent = () => {
+    if (!user?.employee_id || selectedUser === null) return;
+    const employeeId = selectedUser;
+
+    if (viewType === 'year') {
+      return loadTimesheets(employeeId, undefined, currentDate.getFullYear());
+    }
+    if (viewType === 'month') {
+      return loadTimesheets(employeeId, currentDate.getMonth() + 1, currentDate.getFullYear());
+    }
+    return loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
   };
 
   useEffect(() => {
@@ -90,8 +119,8 @@ export const Timesheet: React.FC = () => {
     return EntryType.WORK;
   }
 
-  const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
-    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
+  const loadTimesheets = async (employeeId: number, month?: number, year?: number, startDate?: string, endDate?: string ) => {
+    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year, false, startDate, endDate);
     const timesheets: any[] = data?.flatMap((item: any, index: number) => {
       let timesheet = {
         userId: user.id,
@@ -104,59 +133,31 @@ export const Timesheet: React.FC = () => {
       return [timesheet];
     }) || [];
     setTimesheets(timesheets);
+    console.log({idUtente: employeeId, mese: month, anno: year, all_users: false, startDate: startDate, EndDate: endDate})
   }
 
-
+  // Stringa "YYYY-MM-DD" del lunedì — cambia solo quando cambia settimana
+  const weekStartStr = useMemo(() => formatDate(weekDates[0]), [weekDates]);
+  const weekEndStr   = useMemo(() => formatDate(weekDates[6]), [weekDates]);
 
   useEffect(() => {
-    if (user?.id) {
-      const employeeIdToLoad = selectedUser || user?.employee_id;
-      const year = currentDate.getFullYear();
+    if (!user?.id || selectedUser === null) return;
 
-      if (viewType === 'year') {
-        // Carica tutto l'anno (senza specificare il mese)
-        if (!loadedPeriod || loadedPeriod.year !== year || loadedPeriod.type !== 'year') {
-          console.log("Loading timesheets for year:", year);
-          loadTimesheets(employeeIdToLoad, undefined, year);
-          setLoadedPeriod({ year, type: 'year' });
-        }
-      } else {
-        // Carica solo il mese corrente per le viste week e month
-        const month = currentDate.getMonth() + 1;
-        if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year || loadedPeriod.type !== 'month') {
-          console.log("Loading timesheets for month:", month, year);
-          loadTimesheets(employeeIdToLoad, month, year);
-          setLoadedPeriod({ month, year, type: 'month' });
-        }
-      }
+    const employeeId = selectedUser;
+
+    if (viewType === 'year') {
+      loadTimesheets(employeeId, undefined, currentDate.getFullYear());
+      return;
     }
-  }, [user?.id, currentDate, viewType, loadedPeriod, selectedUser]);
-
-  useEffect(() => {
-    // Non caricare se selectedUser è null
-    if (!selectedUser || !user?.id) {
+    if (viewType === 'month') {
+      loadTimesheets(employeeId, currentDate.getMonth() + 1, currentDate.getFullYear());
       return;
     }
 
-    const year = currentDate.getFullYear();
+    loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
 
-    if (viewType === 'year') {
-      console.log("Loading timesheets for selected user (year):", selectedUser);
-      loadTimesheets(selectedUser, undefined, year);
-      setLoadedPeriod({ year, type: 'year' });
-    } else {
-      const month = currentDate.getMonth() + 1;
-      console.log("Loading timesheets for selected user (month):", selectedUser, month, year);
-      loadTimesheets(selectedUser, month, year);
-      setLoadedPeriod({ month, year, type: 'month' });
-    }
-  }, [selectedUser]);
+  }, [user?.id, selectedUser, viewType, weekStartStr, weekEndStr, currentDate]);
 
-  useEffect(() => {
-    // Reset del periodo caricato quando cambia la vista
-    // Questo forzerà il caricamento dei dati corretti
-    setLoadedPeriod(null);
-  }, [viewType]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -174,24 +175,7 @@ export const Timesheet: React.FC = () => {
     return selectedUser === user?.employee_id;
   }, [selectedUser, user?.employee_id]);
 
-  // Calculate Start of Week (Monday)
-  const startOfWeek = useMemo(() => {
-    const d = new Date(currentDate);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
-  }, [currentDate]);
-
-  // Generate Week Dates
-  const weekDates = useMemo(() => {
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      dates.push(d);
-    }
-    return dates;
-  }, [startOfWeek]);
+  
 
   // Generate Month Dates (calendar grid)
   const monthDates = useMemo(() => {
@@ -224,10 +208,6 @@ export const Timesheet: React.FC = () => {
       a.getDate() === b.getDate()
     );
   }
-
-  const formatDate = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
 
   // Generate Year Data (12 months)
   const yearMonths = useMemo(() => {
@@ -409,8 +389,7 @@ export const Timesheet: React.FC = () => {
         // Attendi che tutte le entry siano create
         await Promise.all(promises);
       }
-
-      await loadTimesheets(user.employee_id);
+      await reloadCurrent();
       setIsModalOpen(false);
     } catch (error) {
       console.error("Errore nel salvataggio:", error);
@@ -423,7 +402,7 @@ export const Timesheet: React.FC = () => {
     try {
       await deleteEntry(entry);
       // Ricarica i timesheets dopo aver cancellato
-      await loadTimesheets(user.employee_id);
+      await reloadCurrent();
     } catch (error) {
       console.error("Errore cancellazione:", error);
     }
