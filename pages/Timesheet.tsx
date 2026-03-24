@@ -65,25 +65,29 @@ export const Timesheet: React.FC = () => {
   const formatDate = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+  const currentYear  = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
   const reloadCurrent = () => {
     if (!user?.employee_id || selectedUser === null) return;
     const employeeId = selectedUser;
 
     if (viewType === 'year') {
-      return loadTimesheets(employeeId, undefined, currentDate.getFullYear());
+      return loadTimesheets(employeeId, undefined, currentYear);
     }
     if (viewType === 'month') {
-      return loadTimesheets(employeeId, currentDate.getMonth() + 1, currentDate.getFullYear());
+      return loadTimesheets(employeeId, currentMonth + 1, currentYear);
     }
     return loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
   };
 
+  
+
   useEffect(() => {
-    const year = currentDate.getFullYear();
 
     const loadHolidays = async () => {
       try {
-        const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(year);
+        const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(currentYear);
 
         const m = new Map<string, string>();
         (holidays || []).forEach(h => {
@@ -102,7 +106,8 @@ export const Timesheet: React.FC = () => {
     };
 
     loadHolidays();
-  }, [currentDate]);
+    console.log("loadHolidays");
+  }, [currentYear]);
 
 
 
@@ -146,17 +151,17 @@ export const Timesheet: React.FC = () => {
     const employeeId = selectedUser;
 
     if (viewType === 'year') {
-      loadTimesheets(employeeId, undefined, currentDate.getFullYear());
+      loadTimesheets(employeeId, undefined, currentYear);
       return;
     }
     if (viewType === 'month') {
-      loadTimesheets(employeeId, currentDate.getMonth() + 1, currentDate.getFullYear());
+      loadTimesheets(employeeId, currentMonth + 1, currentYear);
       return;
     }
 
     loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
 
-  }, [user?.id, selectedUser, viewType, weekStartStr, weekEndStr, currentDate]);
+  }, [user?.id, selectedUser, viewType, weekStartStr, weekEndStr, currentMonth, currentYear]);
 
 
   // Form State
@@ -179,11 +184,8 @@ export const Timesheet: React.FC = () => {
 
   // Generate Month Dates (calendar grid)
   const monthDates = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
     // First day of the month
-    const firstDay = new Date(year, month, 1);
+    const firstDay = new Date(currentYear, currentMonth, 1);
     const MONDAY = 1;
     const day = firstDay.getDay();
     let diff = day - MONDAY;
@@ -199,7 +201,7 @@ export const Timesheet: React.FC = () => {
       dates.push(d);
     }
     return dates;
-  }, [currentDate]);
+  }, [currentYear, currentMonth]);
 
   const isSameDay = (a: Date, b: Date) => {
     return (
@@ -211,17 +213,16 @@ export const Timesheet: React.FC = () => {
 
   // Generate Year Data (12 months)
   const yearMonths = useMemo(() => {
-    const year = currentDate.getFullYear();
     return Array.from({ length: 12 }, (_, i) => {
-      const monthDate = new Date(year, i, 1);
+      const monthDate = new Date(currentYear, i, 1);
       return {
         date: monthDate,
         name: MONTH_NAMES[i],
         month: i,
-        year: year
+        year: currentYear
       };
     });
-  }, [currentDate]);
+  }, [currentYear]);
 
   // Filter entries based on view
   const filteredEntries = useMemo(() => {
@@ -233,21 +234,17 @@ export const Timesheet: React.FC = () => {
         e.date <= endStr
       );
     } else if (viewType === 'month') {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
       return timesheets.filter(e => {
         const entryDate = new Date(e.date);
-        return entryDate.getFullYear() === year && entryDate.getMonth() === month;
+        return entryDate.getFullYear() === currentYear && entryDate.getMonth() === currentMonth;
       });
     } else {
-      // year view
-      const year = currentDate.getFullYear();
       return timesheets.filter(e => {
         const entryDate = new Date(e.date);
-        return entryDate.getFullYear() === year;
+        return entryDate.getFullYear() === currentYear;
       });
     }
-  }, [timesheets, user, weekDates, currentDate, viewType]);
+  }, [timesheets, weekStartStr, weekEndStr, currentYear, currentMonth, viewType]);
 
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
@@ -288,9 +285,9 @@ export const Timesheet: React.FC = () => {
     if (viewType === 'week') {
       return `${weekDates[0].toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} - ${weekDates[6].toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`;
     } else if (viewType === 'month') {
-      return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+      return `${MONTH_NAMES[currentMonth]} ${currentYear}`;
     } else {
-      return `${currentDate.getFullYear()}`;
+      return `${currentYear}`;
     }
   };
 
@@ -868,7 +865,7 @@ export const Timesheet: React.FC = () => {
                   const dayEntries = filteredEntries.filter(e => e.date === dateStr);
                   const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                   const isToday = isSameDay(date, new Date())
-                  const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                  const isCurrentMonth = date.getMonth() === currentMonth;
                   const redDay = isRedDay(dateStr, date);
                   const holidayTitle = getHolidayTitle(dateStr);
                   return (
