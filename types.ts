@@ -74,7 +74,10 @@ export interface Project {
   name: string;
   customer_id: number;
   customerId: number;
-  active: boolean;  // alias for compatibility
+  active: boolean;
+  start_date?: string | null;   // formato ISO: "2024-01-15"
+  end_date?: string | null;
+  effort?: number | null;       // giorni uomo
 }
 
 // TimesheetEntry combines timesheet and timework for easier use in UI

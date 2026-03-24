@@ -44,9 +44,15 @@ export const Anagrafiche: React.FC = () => {
   const [projectForm, setProjectForm] = useState<{
     name: string;
     customer_id: number | "";
+    start_date: string;
+    end_date: string;
+    effort: string;
   }>({
     name: "",
     customer_id: "",
+    start_date: "",
+    end_date: "",
+    effort: "",
   });
 
   const [clientForm, setClientForm] = useState({
@@ -157,7 +163,7 @@ export const Anagrafiche: React.FC = () => {
 
       setUserModalOpen(false);
       showToast("Utente creato con successo", "success");
-      
+
       setSelectedUser(null);
       setUserForm({
         first_name: "",
@@ -180,31 +186,36 @@ export const Anagrafiche: React.FC = () => {
       name: projectForm.name,
       customer_id: Number(projectForm.customer_id),
       customerId: Number(projectForm.customer_id),
+      start_date: projectForm.start_date || null,
+      end_date: projectForm.end_date || null,
+      effort: projectForm.effort ? Number(projectForm.effort) : null,
     });
 
     setProjectModalOpen(false);
-    setProjectForm({ name: "", customer_id: "" });
+    setProjectForm({ name: "", customer_id: "", start_date: "", end_date: "", effort: "" });
   };
 
   const handleEditProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
-
     await updateProject({
       ...selectedProject,
       name: projectForm.name,
       customer_id: Number(projectForm.customer_id),
       customerId: Number(projectForm.customer_id),
+      start_date: projectForm.start_date || null,
+      end_date: projectForm.end_date || null,
+      effort: projectForm.effort ? Number(projectForm.effort) : null,
     });
 
     setProjectModalOpen(false);
     setSelectedProject(null);
-    setProjectForm({ name: "", customer_id: "" });
+    setProjectForm({ name: "", customer_id: "", start_date: "", end_date: "", effort: "" });
   };
 
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     await addClient({
       name: clientForm.name,
       company: user.company,
@@ -231,7 +242,7 @@ export const Anagrafiche: React.FC = () => {
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
-    
+
     try {
       await updateUser({
         ...selectedUser,
@@ -257,7 +268,7 @@ export const Anagrafiche: React.FC = () => {
         hire_date: "",
         is_staff: false
       });
-      
+
     } catch (error) {
       showToast(parseApiError(error), "error");
     }
@@ -293,7 +304,7 @@ export const Anagrafiche: React.FC = () => {
 
   const openCreateProject = () => {
     setSelectedProject(null);
-    setProjectForm({ name: "", customer_id: "" });
+    setProjectForm({ name: "", customer_id: "", start_date: "", end_date: "", effort: "" });
     setProjectModalMode("create");
     setProjectModalOpen(true);
   };
@@ -303,6 +314,9 @@ export const Anagrafiche: React.FC = () => {
     setProjectForm({
       name: project.name,
       customer_id: project.customer_id,
+      start_date: project.start_date ?? "",
+      end_date: project.end_date ?? "",
+      effort: project.effort != null ? String(project.effort) : "",
     });
     setProjectModalMode("edit");
     setProjectModalOpen(true);
@@ -418,8 +432,8 @@ export const Anagrafiche: React.FC = () => {
               tab === "projects"
                 ? openCreateProject
                 : tab === "clients"
-                ? openCreateClient
-                : openCreateUser
+                  ? openCreateClient
+                  : openCreateUser
             }
             icon={<Plus size={18} />}
             className="whitespace-nowrap"
@@ -436,21 +450,19 @@ export const Anagrafiche: React.FC = () => {
               setTab("clients");
               setSearch("");
             }}
-            className={`pb-3 px-2 border-b-2 transition-all ${
-              tab === "clients"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-            }`}
+            className={`pb-3 px-2 border-b-2 transition-all ${tab === "clients"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              }`}
           >
             <div className="flex items-center gap-2">
               <Users size={20} />
               <span className="font-medium">Clienti</span>
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  tab === "clients"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tab === "clients"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-slate-100 text-slate-600"
+                  }`}
               >
                 {clients.length}
               </span>
@@ -462,21 +474,19 @@ export const Anagrafiche: React.FC = () => {
               setTab("projects");
               setSearch("");
             }}
-            className={`pb-3 px-2 border-b-2 transition-all ${
-              tab === "projects"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-            }`}
+            className={`pb-3 px-2 border-b-2 transition-all ${tab === "projects"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              }`}
           >
             <div className="flex items-center gap-2">
               <Briefcase size={20} />
               <span className="font-medium">Progetti</span>
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  tab === "projects"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tab === "projects"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-slate-100 text-slate-600"
+                  }`}
               >
                 {projects.length}
               </span>
@@ -488,21 +498,19 @@ export const Anagrafiche: React.FC = () => {
               setTab("team");
               setSearch("");
             }}
-            className={`pb-3 px-2 border-b-2 transition-all ${
-              tab === "team"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-            }`}
+            className={`pb-3 px-2 border-b-2 transition-all ${tab === "team"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              }`}
           >
             <div className="flex items-center gap-2">
               <Users size={20} />
               <span className="font-medium">Team</span>
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  tab === "team"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tab === "team"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-slate-100 text-slate-600"
+                  }`}
               >
                 {users.length}
               </span>
@@ -600,21 +608,21 @@ export const Anagrafiche: React.FC = () => {
               ? "Disattiva progetto"
               : "Attiva progetto"
             : toggleTarget === "client"
-            ? selectedClient?.active
-              ? "Disattiva cliente"
-              : "Attiva cliente"
-            : selectedUser?.is_active
-            ? "Disattiva collaboratore"
-            : "Attiva collaboratore"
+              ? selectedClient?.active
+                ? "Disattiva cliente"
+                : "Attiva cliente"
+              : selectedUser?.is_active
+                ? "Disattiva collaboratore"
+                : "Attiva collaboratore"
         }
         message={
           toggleTarget === "project" && selectedProject
             ? `Vuoi ${selectedProject.active ? "disattivare" : "attivare"} il progetto "${selectedProject.name}"?`
             : toggleTarget === "client" && selectedClient
-            ? `Vuoi ${selectedClient.active ? "disattivare" : "attivare"} il cliente "${selectedClient.name}"?`
-            : toggleTarget === "user" && selectedUser
-            ? `Vuoi ${selectedUser.is_active ? "disattivare" : "attivare"} il collaboratore "${selectedUser.name}"?`
-            : ""
+              ? `Vuoi ${selectedClient.active ? "disattivare" : "attivare"} il cliente "${selectedClient.name}"?`
+              : toggleTarget === "user" && selectedUser
+                ? `Vuoi ${selectedUser.is_active ? "disattivare" : "attivare"} il collaboratore "${selectedUser.name}"?`
+                : ""
         }
         confirmLabel={
           toggleTarget === "project"
@@ -622,12 +630,12 @@ export const Anagrafiche: React.FC = () => {
               ? "Disattiva"
               : "Attiva"
             : toggleTarget === "client"
-            ? selectedClient?.active
-              ? "Disattiva"
-              : "Attiva"
-            : selectedUser?.is_active
-            ? "Disattiva"
-            : "Attiva"
+              ? selectedClient?.active
+                ? "Disattiva"
+                : "Attiva"
+              : selectedUser?.is_active
+                ? "Disattiva"
+                : "Attiva"
         }
         onConfirm={handleConfirmToggle}
         onClose={() => {
@@ -638,7 +646,7 @@ export const Anagrafiche: React.FC = () => {
           setSelectedUser(null);
         }}
       />
-      {toast && <Toast message={toast.message} type={toast.type} />}  
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
   );
 };
