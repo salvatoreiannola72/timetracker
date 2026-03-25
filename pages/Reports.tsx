@@ -686,17 +686,17 @@ export const Reports: React.FC = () => {
             return (
               <Card key={item.user.id} className="transition-all duration-200">
                 <div
-                  className="p-4 flex items-center justify-between cursor-pointer"
+                  className="p-4 flex items-start justify-between cursor-pointer gap-1"
                   onClick={() => toggleExpand(item.user.id)}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex gap-4">
                     <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white shadow-sm">
-                      <span className="text-sm font-semibold text-blue-600">
+                      <span className="text-sm font-semibold text-blue-600 w-12 h-12 flex items-center justify-center ">
                         {item.user.first_name?.[0]?.toUpperCase()}
                         {item.user.last_name?.[0]?.toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex gap-8">
+                    <div className="flex gap-4 lg:gap-8 flex-wrap">
                       <div>
                         <h3 className="font-bold text-slate-900">
                           {item.user.name}
@@ -705,7 +705,7 @@ export const Reports: React.FC = () => {
                           {item.user.email}
                         </p>
                       </div>
-                      <div className="flex gap-3 ">
+                      <div className="flex gap-3 flex-wrap lg:gap-3">
                         {Object.entries(item.projects)
                           .filter(([key]) =>
                             ["SICK_LEAVE", "PERMIT", "VACATION"].includes(key),
@@ -713,18 +713,18 @@ export const Reports: React.FC = () => {
                           .map(([key, proj]: any, idx) => (
                             <div
                               key={idx}
-                              className="flex gap-3 bg-slate-50 rounded-lg p-3 border border-slate-100 flex items-center justify-between"
+                              className="flex gap-1 bg-slate-50 rounded-lg p-1 md:p-3 border border-slate-100 flex items-center justify-between"
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
                                 <div
                                   className="w-3 h-3 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: proj.color }}
                                 />
-                                <span className="text-sm font-medium text-slate-700 truncate">
+                                <span className="text-sm font-medium text-slate-700 truncate hidden md:flex">
                                   {proj.name}
                                 </span>
                               </div>
-                              <span className="text-sm font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border border-slate-100">
+                              <span className="text-sm font-bold text-slate-900 bg-white px-1 py-1 rounded shadow-sm border border-slate-100 md:px-1 md:py-1">
                                 {formatHours(proj.hours, true)}
                               </span>
                             </div>
