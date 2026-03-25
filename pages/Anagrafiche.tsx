@@ -429,8 +429,8 @@ export const Anagrafiche: React.FC = () => {
         </div>
       </div>
 
-      <div className="border-b border-slate-200">
-        <div className="flex gap-6">
+      <div className="border-b border-slate-200 overflow-x-auto">
+        <div className="flex gap-6 min-w-max">
           <button
             onClick={() => {
               setTab("clients");
