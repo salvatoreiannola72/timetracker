@@ -51,7 +51,7 @@ export const ProjectFormModal: React.FC<Props> = ({
               Nome progetto
             </label>
             <input
-              className="input"
+              className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
               placeholder="es. Website Redesign"
               value={form.name}
               onChange={(e) => onChange({ ...form, name: e.target.value })}
@@ -65,7 +65,7 @@ export const ProjectFormModal: React.FC<Props> = ({
               Cliente
             </label>
             <select
-              className="input"
+              className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
               value={form.customer_id}
               onChange={(e) =>
                 onChange({ ...form, customer_id: Number(e.target.value) })
@@ -82,14 +82,14 @@ export const ProjectFormModal: React.FC<Props> = ({
           </div>
 
           {/* Date */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Data inizio
               </label>
               <input
                 type="date"
-                className="input"
+                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
                 value={form.start_date}
                 onChange={(e) => onChange({ ...form, start_date: e.target.value })}
               />
@@ -100,7 +100,7 @@ export const ProjectFormModal: React.FC<Props> = ({
               </label>
               <input
                 type="date"
-                className="input"
+                className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
                 value={form.end_date}
                 onChange={(e) => onChange({ ...form, end_date: e.target.value })}
               />
@@ -115,7 +115,7 @@ export const ProjectFormModal: React.FC<Props> = ({
             <input
               type="number"
               min={1}
-              className="input"
+              className="w-full rounded-lg border-slate-300 border p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm touch-manipulation"
               placeholder="es. 20"
               value={form.effort}
               onChange={(e) => onChange({ ...form, effort: e.target.value })}
