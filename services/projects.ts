@@ -22,7 +22,7 @@ export class ProjectsService {
         }
     }
 
-    static async addProject(name: string, clientId: number): Promise<any> {
+    static async addProject(name: string, clientId: number, start_date: string | null, end_date: string | null, effort: number | null): Promise<any> {
         const token = AuthService.getAccessToken();
 
         try {
@@ -34,7 +34,7 @@ export class ProjectsService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name, customer: clientId }),
+                    body: JSON.stringify({ name, customer: clientId, start_date, end_date, effort }),
                 }
             );
             const data = await response.json();
@@ -65,7 +65,7 @@ export class ProjectsService {
         }
     } 
     
-    static async updateProject(id: number, name: string, clientId: number, active: boolean): Promise<any> {
+    static async updateProject(id: number, name: string, clientId: number, active: boolean, start_date: string | null, end_date: string | null, effort: number | null): Promise<any> {
         const token = AuthService.getAccessToken();
         try {
             const response = await fetch(
@@ -76,7 +76,7 @@ export class ProjectsService {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ name, customer: clientId, active: active }),
+                    body: JSON.stringify({ name, customer: clientId, active: active, start_date, end_date, effort }),
                 }
             );
             const data = await response.json();
