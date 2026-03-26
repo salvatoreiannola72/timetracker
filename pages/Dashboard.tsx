@@ -143,8 +143,18 @@ export const Dashboard: React.FC = () => {
     const permitsHours = permitsEntries.reduce((acc, curr) => acc + curr.permits, 0);
     const activeProjectCount = new Set(entries.filter(e => e.projectId !== null && e.projectId !== undefined && e.projectId !== '').map(e => e.projectId)).size;
     const activeUsersCount = new Set(entries.map(e => e.userId)).size;
-    const chartData = mapTimesheet(clients, entries)
+    const parsedTimesheet = mapTimesheet(clients, entries)
 
+    const chartData = Object.values(
+      parsedTimesheet.reduce((acc, curr) => {
+        if (!acc[curr.project_id]) {
+          acc[curr.project_id] = { ...curr };
+        } else {
+          acc[curr.project_id].hours += curr.hours;
+        }
+        return acc;
+      }, {})
+    ).sort((a: any, b: any) => b.hours - a.hours);
 
 
     // Chart Data: Hours per Project
