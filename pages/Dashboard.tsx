@@ -7,6 +7,7 @@ import { Clock, Briefcase, TrendingUp, Calendar, Users, Umbrella, Stethoscope, C
 import { COLORS } from '../constants';
 import { TimesheetsService } from '@/services/timesheets';
 import { useDisplayUnit } from '@/hooks/useDisplayUnit';
+import { calcYearWorkingDays, calcMonthWorkingDays } from '@/utils/calcAvgHours';
 
 type ViewType = 'monthly' | 'yearly';
 const HOURS_PER_DAY = 8;
@@ -15,6 +16,13 @@ export const Dashboard: React.FC = () => {
   const { user, projects, users, clients } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
+  const [avgHours, setAvgHours] = useState(async () => {
+    const now = new Date();
+    return {
+      year: await calcYearWorkingDays(now.getFullYear()),
+      month: await calcMonthWorkingDays(now.getFullYear(), now.getMonth() + 1)
+    };
+  });
   const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -99,6 +107,10 @@ export const Dashboard: React.FC = () => {
       const month = viewType === 'monthly' ? selectedDate.month : undefined;
       const year = selectedDate.year;
       loadEntries(user.employee_id, user.is_staff, month, year);
+      const calc = async () => {
+        setAvgHours({month: await calcMonthWorkingDays(year, month), year: await calcYearWorkingDays(year)})
+      }
+      calc()
     }
   }, [user, viewType, selectedDate, dashboardDisplay]);
   // Helper function to convert hours to display unit
@@ -135,7 +147,7 @@ export const Dashboard: React.FC = () => {
       }));
   }
   // Compute KPIs
-  const kpis = useMemo(() => {
+  const kpis = useMemo( () => {
     const totalHours = entries.reduce((acc, curr) => acc + curr.hours, 0);
     const permitsEntries = entries.filter(entry => entry.entry_type == "PERMIT")
     const holidayHours = entries.filter(entry => entry.entry_type == "VACATION").length * HOURS_PER_DAY
@@ -191,11 +203,13 @@ export const Dashboard: React.FC = () => {
     }
 
     const daysInPeriod = viewType === 'monthly'
-      ? new Date(selectedDate.year, selectedDate.month, 0).getDate()
-      : 365;
+      ? avgHours.month
+      : avgHours.year;
 
+      console.log('days in period', daysInPeriod)
     const avgDailyHours = totalHours / daysInPeriod;
-
+    
+   
     return {
       totalHours,
       activeProjectCount,
