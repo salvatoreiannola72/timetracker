@@ -17,7 +17,6 @@ export const Dashboard: React.FC = () => {
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
   const [avgHours, setAvgHours] = useState({ year: 0, month: 0 });
-  const [avgHours, setAvgHours] = useState({ year: 0, month: 0 });
   const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
