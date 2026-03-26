@@ -12,7 +12,7 @@ type ViewType = 'monthly' | 'yearly';
 const HOURS_PER_DAY = 8;
 
 export const Dashboard: React.FC = () => {
-  const { user, projects, users } = useStore();
+  const { user, projects, users, clients } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
   const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
@@ -114,6 +114,26 @@ export const Dashboard: React.FC = () => {
     return short ? `${formatted}h` : `${formatted} ${value === 1 ? 'ora' : 'ore'}`;
   };
 
+  function mapTimesheet(customers, timesheet) {
+    const projectMap = {};
+
+    customers.forEach(customer => {
+      customer.projects.forEach(project => {
+        projectMap[project.id] = {
+          customer_name: customer.name,
+          project_name: project.name
+        };
+      });
+    });
+    return timesheet
+      .filter(item => item.projectId && item.hours)
+      .map(item => ({
+        project_id: item.projectId,
+        customer_name: projectMap[item.projectId]?.customer_name,
+        project_name: projectMap[item.projectId]?.project_name,
+        hours: item.hours
+      }));
+  }
   // Compute KPIs
   const kpis = useMemo(() => {
     const totalHours = entries.reduce((acc, curr) => acc + curr.hours, 0);
@@ -123,6 +143,9 @@ export const Dashboard: React.FC = () => {
     const permitsHours = permitsEntries.reduce((acc, curr) => acc + curr.permits, 0);
     const activeProjectCount = new Set(entries.filter(e => e.projectId !== null && e.projectId !== undefined && e.projectId !== '').map(e => e.projectId)).size;
     const activeUsersCount = new Set(entries.map(e => e.userId)).size;
+    const chartData = mapTimesheet(clients, entries)
+
+
 
     // Chart Data: Hours per Project
     const projectHours: Record<string, number> = {};
@@ -134,10 +157,10 @@ export const Dashboard: React.FC = () => {
       projectHours[pName] = (projectHours[pName] || 0) + e.hours;
     });
 
-    const chartData = Object.entries(projectHours)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-
+    // const chartData = Object.entries(projectHours)
+    //   .map(([name, value]) => ({ name, value }))
+    //   .sort((a, b) => b.value - a.value);
+    // console.log('chartData', chartData)
     // Trend data based on view type
     let trendData: { label: string; hours: number }[] = [];
 
@@ -302,12 +325,12 @@ export const Dashboard: React.FC = () => {
     return (
       <div ref={ref} className="flex flex-wrap gap-4 justify-center mt-4">
         {payload?.map((entry: any, index: number) => {
-          const displayValue = convertToDisplayUnit(entry.payload.value);
+          const displayValue = convertToDisplayUnit(entry.payload.hours);
           return (
             <div key={`legend-${index}`} className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
               <span className="text-sm text-slate-700 font-medium">
-                {entry.value} ({getUnitLabel(displayValue, true)})
+                {entry.payload.customer_name} - {entry.payload.project_name} ({getUnitLabel(displayValue, true)})
               </span>
             </div>
           );
@@ -542,7 +565,7 @@ export const Dashboard: React.FC = () => {
                     innerRadius={70}
                     outerRadius={110}
                     paddingAngle={3}
-                    dataKey="value"
+                    dataKey="hours"
                   >
                     {kpis.chartData.map((entry, index) => (
                       <Cell
@@ -565,7 +588,7 @@ export const Dashboard: React.FC = () => {
                       const displayValue = convertToDisplayUnit(value);
                       return [
                         getUnitLabel(displayValue, true),
-                        `${props.payload.name} (${((value / kpis.totalHours) * 100).toFixed(1)}%)`
+                        `${props.payload.customer_name} - ${props.payload.project_name} (${((value / kpis.totalHours) * 100).toFixed(1)}%)`
                       ];
                     }}
                   />
