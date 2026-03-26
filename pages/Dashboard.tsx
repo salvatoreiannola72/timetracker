@@ -17,6 +17,7 @@ export const Dashboard: React.FC = () => {
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
   const [avgHours, setAvgHours] = useState({ year: 0, month: 0 });
+  const [avgHours, setAvgHours] = useState({ year: 0, month: 0 });
   const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -101,10 +102,12 @@ export const Dashboard: React.FC = () => {
       const month = viewType === 'monthly' ? selectedDate.month : undefined;
       const year = selectedDate.year;
       loadEntries(user.employee_id, user.is_staff, month, year);
-      const calc = async () => {
-        setAvgHours({ month: await calcMonthWorkingDays(year, month), year: await calcYearWorkingDays(year) })
+      const calcAvgHours = async () => {
+        const avgYear = await calcYearWorkingDays(year);
+        const avgMonth = await calcMonthWorkingDays(year, month);
+        setAvgHours({ year: avgYear, month: avgMonth });
       }
-      calc()
+      calcAvgHours()
     }
   }, [user, viewType, selectedDate, dashboardDisplay]);
   // Helper function to convert hours to display unit
@@ -211,8 +214,8 @@ export const Dashboard: React.FC = () => {
       : avgHours.year;
 
     const avgDailyHours = daysInPeriod > 0 ? totalHours / daysInPeriod : 0;
-
-
+    
+   
     return {
       totalHours,
       activeProjectCount,
@@ -224,7 +227,7 @@ export const Dashboard: React.FC = () => {
       holidayHours,
       sickHours
     };
-  }, [entries, projects, viewType, selectedDate]);
+  }, [entries, projects, viewType, selectedDate, avgHours]);
 
 
   const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
