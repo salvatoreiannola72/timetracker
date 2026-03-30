@@ -86,10 +86,10 @@ export const Reports: React.FC = () => {
       const entryMonth = entryDate.getMonth() + 1;
 
       if (periodType === "yearly") {
-        return entryYear === selectedDate.year;
+        return entryYear === selectedDate.year && entryDate < new Date();
       } else {
         return (
-          entryYear === selectedDate.year && entryMonth === selectedDate.month
+          entryYear === selectedDate.year && entryMonth === selectedDate.month && entryDate < new Date()
         );
       }
     });
@@ -204,7 +204,7 @@ export const Reports: React.FC = () => {
     });
 
     return Object.values(data)
-      .filter((d) => d.totalHours > 0) // Hide users with 0 hours
+      .filter((d) => d.totalHours > 0 || d.projects[EntryType.VACATION || EntryType.PERMIT || EntryType.SICK_LEAVE]?.hours > 0) // Hide users with 0 hours
       .sort((a, b) => b.totalHours - a.totalHours);
   }, [filteredEntries, users, projects]);
 
