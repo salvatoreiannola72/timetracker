@@ -4,7 +4,7 @@ export type DisplayUnit = 'hours' | 'days';
 
 const HOURS_PER_DAY = 8;
 
-export const useDisplayUnit = (initialUnit: DisplayUnit = 'hours') => {
+export const useDisplayUnit = (initialUnit: DisplayUnit = 'days') => {
   const [displayUnit, setDisplayUnit] = useState<DisplayUnit>(initialUnit);
 
   const formatHours = useCallback(
