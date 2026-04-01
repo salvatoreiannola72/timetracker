@@ -53,8 +53,15 @@ export const ClientsTabContent: React.FC<ClientsTabContentProps> = ({
               : 'bg-slate-100 border-slate-300'
           }`}
         >
-          <div className="p-5">
-            <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+          <div className="p-5 flex justify-between items-start ">
+            <div className="min-w-0">
+              <h3 className="font-bold text-slate-900 text-lg mb-1 text-top break-words">{client.name}</h3>
+              <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
+                <Briefcase size={14} />
+                {getClientProjectsCount(client.id)} progetti
+              </p>
+            </div>
+             <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onEditClient(client)}
                 className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -74,12 +81,6 @@ export const ClientsTabContent: React.FC<ClientsTabContentProps> = ({
                 {client.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
               </button>
             </div>
-
-            <h3 className="font-bold text-slate-900 text-lg mb-1">{client.name}</h3>
-            <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
-              <Briefcase size={14} />
-              {getClientProjectsCount(client.id)} progetti
-            </p>
           </div>
         </Card>
       ))}
