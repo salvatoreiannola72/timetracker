@@ -24,6 +24,7 @@ interface StoreContextType extends AppState {
   deleteClient: (id: number) => Promise<void>;
   addUser: (user: UserFormData) => Promise<void>;
   updateUser: (user: User & { password?: string }) => Promise<void>;
+  changePassword: (user_id: string, old_password: string, new_password: string) => Promise<{ success: boolean; error?: string }>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -228,21 +229,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  const changePassword = async (old_password: string, new_password1: string, new_password2: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        console.error('Update password error:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
+      const result = await AuthService.changePassword(old_password, new_password1, new_password2);
+      return result;
     } catch (error: any) {
-      console.error('Update password error:', error);
-      return { success: false, error: error.message || 'Failed to update password' };
+      console.error('Change password error:', error);
+      return { success: false, error: error.message || 'Failed to change password' };
     }
   };
 
@@ -516,7 +509,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       login,
       logout,
       resetPassword,
-      updatePassword,
+      changePassword,
       addEntry,
       deleteEntry,
       addProject,
