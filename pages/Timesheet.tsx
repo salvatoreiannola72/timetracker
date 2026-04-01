@@ -4,7 +4,6 @@ import { Button } from '../components/Button';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarClock, Calendar as CalendarIcon, Briefcase, Umbrella, Stethoscope, Clock, AlertTriangle } from 'lucide-react';
 import { EntryType, Timesheet as TimesheetEntry } from '../types';
 import { TimesheetsService } from '@/services/timesheets';
-import { time } from 'console';
 
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const WEEK_DAYS_SHORT = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -26,11 +25,6 @@ export const Timesheet: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForAdd, setSelectedDateForAdd] = useState<string>('');
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
-  const [loadedPeriod, setLoadedPeriod] = useState<{
-    month?: number,
-    year: number,
-    type: 'month' | 'year'
-  } | null>(null);
   const [holidayByDate, setHolidayByDate] = useState<Map<string, string>>(new Map());
   const [isConfirmOverwriteOpen, setIsConfirmOverwriteOpen] = useState(false);
   const [pendingDateStr, setPendingDateStr] = useState<string | null>(null);
@@ -48,131 +42,6 @@ export const Timesheet: React.FC = () => {
   const getHolidayTitle = (dateStr: string) => {
     return holidayByDate.get(dateStr) || null;
   };
-
-  useEffect(() => {
-    const year = currentDate.getFullYear();
-
-    const loadHolidays = async () => {
-      try {
-        const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(year);
-
-        const m = new Map<string, string>();
-        (holidays || []).forEach(h => {
-          if (!h?.start) return;
-          const title = h.title?.trim();
-          if (!title) return;
-
-          m.set(h.start, title);
-        });
-
-        setHolidayByDate(m);
-      } catch (e) {
-        console.error('Error loading holidays', e);
-        setHolidayByDate(new Map());
-      }
-    };
-
-    loadHolidays();
-  }, [currentDate]);
-
-
-
-  const getEntryType = (item) => {
-    if (item.permits_hours !== null && item.permits_hours > 0) {
-      return EntryType.PERMIT;
-    }
-    if (item.holiday) {
-      return EntryType.VACATION;
-    }
-    if (item.illness) {
-      return EntryType.SICK_LEAVE;
-    }
-    return EntryType.WORK;
-  }
-
-  const loadTimesheets = async (employeeId: number, month?: number, year?: number) => {
-    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year);
-    const timesheets: any[] = data?.flatMap((item: any, index: number) => {
-      let timesheet = {
-        userId: user.id,
-        user_id: user.id,
-        projectId: item.project_id,
-        date: item.day,
-        entry_type: getEntryType(item),
-        ...item
-      }
-      return [timesheet];
-    }) || [];
-    setTimesheets(timesheets);
-  }
-
-
-
-  useEffect(() => {
-    if (user?.id) {
-      const employeeIdToLoad = selectedUser || user?.employee_id;
-      const year = currentDate.getFullYear();
-
-      if (viewType === 'year') {
-        // Carica tutto l'anno (senza specificare il mese)
-        if (!loadedPeriod || loadedPeriod.year !== year || loadedPeriod.type !== 'year') {
-          console.log("Loading timesheets for year:", year);
-          loadTimesheets(employeeIdToLoad, undefined, year);
-          setLoadedPeriod({ year, type: 'year' });
-        }
-      } else {
-        // Carica solo il mese corrente per le viste week e month
-        const month = currentDate.getMonth() + 1;
-        if (!loadedPeriod || loadedPeriod.month !== month || loadedPeriod.year !== year || loadedPeriod.type !== 'month') {
-          console.log("Loading timesheets for month:", month, year);
-          loadTimesheets(employeeIdToLoad, month, year);
-          setLoadedPeriod({ month, year, type: 'month' });
-        }
-      }
-    }
-  }, [user?.id, currentDate, viewType, loadedPeriod, selectedUser]);
-
-  useEffect(() => {
-    // Non caricare se selectedUser è null
-    if (!selectedUser || !user?.id) {
-      return;
-    }
-
-    const year = currentDate.getFullYear();
-
-    if (viewType === 'year') {
-      console.log("Loading timesheets for selected user (year):", selectedUser);
-      loadTimesheets(selectedUser, undefined, year);
-      setLoadedPeriod({ year, type: 'year' });
-    } else {
-      const month = currentDate.getMonth() + 1;
-      console.log("Loading timesheets for selected user (month):", selectedUser, month, year);
-      loadTimesheets(selectedUser, month, year);
-      setLoadedPeriod({ month, year, type: 'month' });
-    }
-  }, [selectedUser]);
-
-  useEffect(() => {
-    // Reset del periodo caricato quando cambia la vista
-    // Questo forzerà il caricamento dei dati corretti
-    setLoadedPeriod(null);
-  }, [viewType]);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    entryType: EntryType.WORK,
-    clientId: '',
-    projectId: '',
-    hours: 4,
-    description: '',
-    recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
-    recurrenceEnd: ''
-  });
-
-  const canEdit = useMemo(() => {
-    if (selectedUser === null) return false;
-    return selectedUser === user?.employee_id;
-  }, [selectedUser, user?.employee_id]);
 
   // Calculate Start of Week (Monday)
   const startOfWeek = useMemo(() => {
@@ -193,13 +62,130 @@ export const Timesheet: React.FC = () => {
     return dates;
   }, [startOfWeek]);
 
+  const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const currentYear  = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
+  const reloadCurrent = () => {
+    if (!user?.employee_id || selectedUser === null) return;
+    const employeeId = selectedUser;
+
+    if (viewType === 'year') {
+      return loadTimesheets(employeeId, undefined, currentYear);
+    }
+    if (viewType === 'month') {
+      return loadTimesheets(employeeId, currentMonth + 1, currentYear);
+    }
+    return loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
+  };
+
+  
+
+  useEffect(() => {
+
+    const loadHolidays = async () => {
+      try {
+        const holidays: HolidayEvent[] = await TimesheetsService.getHolidays(currentYear);
+
+        const m = new Map<string, string>();
+        (holidays || []).forEach(h => {
+          if (!h?.start) return;
+          const title = h.title?.trim();
+          if (!title) return;
+
+          m.set(h.start, title);
+        });
+
+        setHolidayByDate(m);
+      } catch (e) {
+        console.error('Error loading holidays', e);
+        setHolidayByDate(new Map());
+      }
+    };
+
+    loadHolidays();
+    console.log("loadHolidays");
+  }, [currentYear]);
+
+
+
+  const getEntryType = (item) => {
+    if (item.permits_hours !== null && item.permits_hours > 0) {
+      return EntryType.PERMIT;
+    }
+    if (item.holiday) {
+      return EntryType.VACATION;
+    }
+    if (item.illness) {
+      return EntryType.SICK_LEAVE;
+    }
+    return EntryType.WORK;
+  }
+
+  const loadTimesheets = async (employeeId: number, month?: number, year?: number, startDate?: string, endDate?: string ) => {
+    const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year, false, startDate, endDate);
+    const timesheets: any[] = data?.flatMap((item: any, index: number) => {
+      let timesheet = {
+        userId: user.id,
+        user_id: user.id,
+        projectId: item.project_id,
+        date: item.day,
+        entry_type: getEntryType(item),
+        ...item
+      }
+      return [timesheet];
+    }) || [];
+    setTimesheets(timesheets);
+    console.log({idUtente: employeeId, mese: month, anno: year, all_users: false, startDate: startDate, EndDate: endDate})
+  }
+
+  // Stringa "YYYY-MM-DD" del lunedì — cambia solo quando cambia settimana
+  const weekStartStr = useMemo(() => formatDate(weekDates[0]), [weekDates]);
+  const weekEndStr   = useMemo(() => formatDate(weekDates[6]), [weekDates]);
+
+  useEffect(() => {
+    if (!user?.id || selectedUser === null) return;
+
+    const employeeId = selectedUser;
+
+    if (viewType === 'year') {
+      loadTimesheets(employeeId, undefined, currentYear);
+      return;
+    }
+    if (viewType === 'month') {
+      loadTimesheets(employeeId, currentMonth + 1, currentYear);
+      return;
+    }
+
+    loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
+
+  }, [user?.id, selectedUser, viewType, weekStartStr, weekEndStr, currentMonth, currentYear]);
+
+
+  // Form State
+  const [formData, setFormData] = useState({
+    entryType: EntryType.WORK,
+    clientId: '',
+    projectId: '',
+    hours: 4,
+    description: '',
+    recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
+    recurrenceEnd: ''
+  });
+
+  const canEdit = useMemo(() => {
+    if (selectedUser === null) return false;
+    return selectedUser === user?.employee_id;
+  }, [selectedUser, user?.employee_id]);
+
+  
+
   // Generate Month Dates (calendar grid)
   const monthDates = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
     // First day of the month
-    const firstDay = new Date(year, month, 1);
+    const firstDay = new Date(currentYear, currentMonth, 1);
     const MONDAY = 1;
     const day = firstDay.getDay();
     let diff = day - MONDAY;
@@ -215,7 +201,7 @@ export const Timesheet: React.FC = () => {
       dates.push(d);
     }
     return dates;
-  }, [currentDate]);
+  }, [currentYear, currentMonth]);
 
   const isSameDay = (a: Date, b: Date) => {
     return (
@@ -225,23 +211,18 @@ export const Timesheet: React.FC = () => {
     );
   }
 
-  const formatDate = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-
   // Generate Year Data (12 months)
   const yearMonths = useMemo(() => {
-    const year = currentDate.getFullYear();
     return Array.from({ length: 12 }, (_, i) => {
-      const monthDate = new Date(year, i, 1);
+      const monthDate = new Date(currentYear, i, 1);
       return {
         date: monthDate,
         name: MONTH_NAMES[i],
         month: i,
-        year: year
+        year: currentYear
       };
     });
-  }, [currentDate]);
+  }, [currentYear]);
 
   // Filter entries based on view
   const filteredEntries = useMemo(() => {
@@ -253,21 +234,17 @@ export const Timesheet: React.FC = () => {
         e.date <= endStr
       );
     } else if (viewType === 'month') {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
       return timesheets.filter(e => {
         const entryDate = new Date(e.date);
-        return entryDate.getFullYear() === year && entryDate.getMonth() === month;
+        return entryDate.getFullYear() === currentYear && entryDate.getMonth() === currentMonth;
       });
     } else {
-      // year view
-      const year = currentDate.getFullYear();
       return timesheets.filter(e => {
         const entryDate = new Date(e.date);
-        return entryDate.getFullYear() === year;
+        return entryDate.getFullYear() === currentYear;
       });
     }
-  }, [timesheets, user, weekDates, currentDate, viewType]);
+  }, [timesheets, weekStartStr, weekEndStr, currentYear, currentMonth, viewType]);
 
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
@@ -308,9 +285,9 @@ export const Timesheet: React.FC = () => {
     if (viewType === 'week') {
       return `${weekDates[0].toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} - ${weekDates[6].toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`;
     } else if (viewType === 'month') {
-      return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+      return `${MONTH_NAMES[currentMonth]} ${currentYear}`;
     } else {
-      return `${currentDate.getFullYear()}`;
+      return `${currentYear}`;
     }
   };
 
@@ -409,8 +386,7 @@ export const Timesheet: React.FC = () => {
         // Attendi che tutte le entry siano create
         await Promise.all(promises);
       }
-
-      await loadTimesheets(user.employee_id);
+      await reloadCurrent();
       setIsModalOpen(false);
     } catch (error) {
       console.error("Errore nel salvataggio:", error);
@@ -423,7 +399,7 @@ export const Timesheet: React.FC = () => {
     try {
       await deleteEntry(entry);
       // Ricarica i timesheets dopo aver cancellato
-      await loadTimesheets(user.employee_id);
+      await reloadCurrent();
     } catch (error) {
       console.error("Errore cancellazione:", error);
     }
@@ -889,7 +865,7 @@ export const Timesheet: React.FC = () => {
                   const dayEntries = filteredEntries.filter(e => e.date === dateStr);
                   const totalHours = dayEntries.reduce((sum, e) => sum + e.hours, 0);
                   const isToday = isSameDay(date, new Date())
-                  const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                  const isCurrentMonth = date.getMonth() === currentMonth;
                   const redDay = isRedDay(dateStr, date);
                   const holidayTitle = getHolidayTitle(dateStr);
                   return (

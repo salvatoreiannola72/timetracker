@@ -7,14 +7,16 @@ import { Clock, Briefcase, TrendingUp, Calendar, Users, Umbrella, Stethoscope, C
 import { COLORS } from '../constants';
 import { TimesheetsService } from '@/services/timesheets';
 import { useDisplayUnit } from '@/hooks/useDisplayUnit';
+import { calcYearWorkingDays, calcMonthWorkingDays } from '@/utils/calcAvgHours';
 
 type ViewType = 'monthly' | 'yearly';
 const HOURS_PER_DAY = 8;
 
 export const Dashboard: React.FC = () => {
-  const { user, projects, users } = useStore();
+  const { user, projects, users, clients } = useStore();
   const [viewType, setViewType] = useState<ViewType>('monthly');
   const [entries, setEntries] = useState([]);
+  const [avgHours, setAvgHours] = useState({ year: 0, month: 0 });
   const [dashboardDisplay, setDashboardDisplay] = useState<'all' | 'personal'>('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -82,7 +84,7 @@ export const Dashboard: React.FC = () => {
         //   });
         //   console.log('entries data',  entries)
         // } else {
-          entries.push(baseEntry);
+        entries.push(baseEntry);
         // }
         return entries;
       });
@@ -99,6 +101,12 @@ export const Dashboard: React.FC = () => {
       const month = viewType === 'monthly' ? selectedDate.month : undefined;
       const year = selectedDate.year;
       loadEntries(user.employee_id, user.is_staff, month, year);
+      const calcAvgHours = async () => {
+        const avgYear = await calcYearWorkingDays(year);
+        const avgMonth = await calcMonthWorkingDays(year, month);
+        setAvgHours({ year: avgYear, month: avgMonth });
+      }
+      calcAvgHours()
     }
   }, [user, viewType, selectedDate, dashboardDisplay]);
   // Helper function to convert hours to display unit
@@ -114,6 +122,26 @@ export const Dashboard: React.FC = () => {
     return short ? `${formatted}h` : `${formatted} ${value === 1 ? 'ora' : 'ore'}`;
   };
 
+  function mapTimesheet(customers, timesheet) {
+    const projectMap = {};
+
+    customers.forEach(customer => {
+      customer.projects.forEach(project => {
+        projectMap[project.id] = {
+          customer_name: customer.name,
+          project_name: project.name
+        };
+      });
+    });
+    return timesheet
+      .filter(item => item.projectId && item.hours)
+      .map(item => ({
+        project_id: item.projectId,
+        customer_name: projectMap[item.projectId]?.customer_name,
+        project_name: projectMap[item.projectId]?.project_name,
+        hours: item.hours
+      }));
+  }
   // Compute KPIs
   const kpis = useMemo(() => {
     const totalHours = entries.reduce((acc, curr) => acc + curr.hours, 0);
@@ -123,6 +151,19 @@ export const Dashboard: React.FC = () => {
     const permitsHours = permitsEntries.reduce((acc, curr) => acc + curr.permits, 0);
     const activeProjectCount = new Set(entries.filter(e => e.projectId !== null && e.projectId !== undefined && e.projectId !== '').map(e => e.projectId)).size;
     const activeUsersCount = new Set(entries.map(e => e.userId)).size;
+    const parsedTimesheet = mapTimesheet(clients, entries)
+
+    const chartData = Object.values(
+      parsedTimesheet.reduce((acc, curr) => {
+        if (!acc[curr.project_id]) {
+          acc[curr.project_id] = { ...curr };
+        } else {
+          acc[curr.project_id].hours += curr.hours;
+        }
+        return acc;
+      }, {})
+    ).sort((a: any, b: any) => b.hours - a.hours);
+
 
     // Chart Data: Hours per Project
     const projectHours: Record<string, number> = {};
@@ -134,10 +175,10 @@ export const Dashboard: React.FC = () => {
       projectHours[pName] = (projectHours[pName] || 0) + e.hours;
     });
 
-    const chartData = Object.entries(projectHours)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-
+    // const chartData = Object.entries(projectHours)
+    //   .map(([name, value]) => ({ name, value }))
+    //   .sort((a, b) => b.value - a.value);
+    // console.log('chartData', chartData)
     // Trend data based on view type
     let trendData: { label: string; hours: number }[] = [];
 
@@ -168,11 +209,12 @@ export const Dashboard: React.FC = () => {
     }
 
     const daysInPeriod = viewType === 'monthly'
-      ? new Date(selectedDate.year, selectedDate.month, 0).getDate()
-      : 365;
+      ? avgHours.month
+      : avgHours.year;
 
-    const avgDailyHours = totalHours / daysInPeriod;
-
+    const avgDailyHours = daysInPeriod > 0 ? totalHours / daysInPeriod : 0;
+    
+   
     return {
       totalHours,
       activeProjectCount,
@@ -184,7 +226,7 @@ export const Dashboard: React.FC = () => {
       holidayHours,
       sickHours
     };
-  }, [entries, projects, viewType, selectedDate]);
+  }, [entries, projects, viewType, selectedDate, avgHours]);
 
 
   const StatCard = ({ title, value, subtitle, icon: Icon, color }: any) => (
@@ -302,12 +344,12 @@ export const Dashboard: React.FC = () => {
     return (
       <div ref={ref} className="flex flex-wrap gap-4 justify-center mt-4">
         {payload?.map((entry: any, index: number) => {
-          const displayValue = convertToDisplayUnit(entry.payload.value);
+          const displayValue = convertToDisplayUnit(entry.payload.hours);
           return (
             <div key={`legend-${index}`} className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
               <span className="text-sm text-slate-700 font-medium">
-                {entry.value} ({getUnitLabel(displayValue, true)})
+                {entry.payload.customer_name} - {entry.payload.project_name} ({getUnitLabel(displayValue, true)})
               </span>
             </div>
           );
@@ -333,37 +375,37 @@ export const Dashboard: React.FC = () => {
           {/* All/Personal Toggle */}
           {
             user?.is_staff && (
-                 <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-                    <button
-                      onClick={() => setDashboardDisplay('all')}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'all'
-                          ? 'bg-blue-500 text-white shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                    >
-                      Totale
-                    </button>
-                    <button
-                      onClick={() =>  setDashboardDisplay('personal')}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'personal'
-                          ? 'bg-blue-500 text-white shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                    >
-                      Personale
-                    </button>
-                  </div>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                <button
+                  onClick={() => setDashboardDisplay('all')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'all'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Totale
+                </button>
+                <button
+                  onClick={() => setDashboardDisplay('personal')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${dashboardDisplay === 'personal'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Personale
+                </button>
+              </div>
             )
           }
-       
+
 
           {/* Display Unit Toggle */}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
             <button
               onClick={() => setDisplayUnit('hours')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${displayUnit === 'hours'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               Ore
@@ -371,8 +413,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setDisplayUnit('days')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${displayUnit === 'days'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               Giorni
@@ -384,8 +426,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setViewType('monthly')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'monthly'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               Mensile
@@ -393,8 +435,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setViewType('yearly')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewType === 'yearly'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               Annuale
@@ -470,27 +512,27 @@ export const Dashboard: React.FC = () => {
             color="#8b5cf6"
           />
         )}
-          <StatCard
-            title="Ferie"
-            value={formatHours(kpis.holidayHours, true)}
-            subtitle={`${user.vacation_days_total}g totali`}
-            icon={Umbrella}
-            color="#16a34a"
-          />
-          <StatCard
-            title="Permessi"
-            value={formatHours(kpis.permitsHours, true)}
-            subtitle={`${user.permit_hours_total}h totali`}
-            icon={Clock}
-            color="#d97706"
-          />
-          <StatCard
-            title="Malattie"
-            value={formatHours(kpis.sickHours, true)}
-            subtitle={`${user.sick_days_total}g totali`}
-            icon={Stethoscope}
-            color="#dc2626"
-          />
+        <StatCard
+          title="Ferie"
+          value={formatHours(kpis.holidayHours, true)}
+          subtitle={`${user.vacation_days_total}g totali`}
+          icon={Umbrella}
+          color="#16a34a"
+        />
+        <StatCard
+          title="Permessi"
+          value={formatHours(kpis.permitsHours, true)}
+          subtitle={`${user.permit_hours_total}h totali`}
+          icon={Clock}
+          color="#d97706"
+        />
+        <StatCard
+          title="Malattie"
+          value={formatHours(kpis.sickHours, true)}
+          subtitle={`${user.sick_days_total}g totali`}
+          icon={Stethoscope}
+          color="#dc2626"
+        />
       </div>
 
       {/* Leave Tracking Section - Only for regular users */}
@@ -542,7 +584,7 @@ export const Dashboard: React.FC = () => {
                     innerRadius={70}
                     outerRadius={110}
                     paddingAngle={3}
-                    dataKey="value"
+                    dataKey="hours"
                   >
                     {kpis.chartData.map((entry, index) => (
                       <Cell
@@ -565,7 +607,7 @@ export const Dashboard: React.FC = () => {
                       const displayValue = convertToDisplayUnit(value);
                       return [
                         getUnitLabel(displayValue, true),
-                        `${props.payload.name} (${((value / kpis.totalHours) * 100).toFixed(1)}%)`
+                        `${props.payload.customer_name} - ${props.payload.project_name} (${((value / kpis.totalHours) * 100).toFixed(1)}%)`
                       ];
                     }}
                   />

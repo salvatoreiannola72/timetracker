@@ -65,7 +65,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="p-8 sm:p-12">
           <div className="flex justify-center mb-8">
-            <img src="/edgeworks.png" alt="Edgeworks" className="h-16 w-auto" />
+            <img src="/timetracker.png" alt="Timetracker" className="h-16 w-auto" />
           </div>
           
           <h2 className="text-2xl font-bold text-center text-slate-900 mb-2">Password dimenticata?</h2>

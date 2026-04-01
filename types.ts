@@ -31,6 +31,7 @@ export interface User {
   hire_date?: string | null;
   job_title?: string | null;
   company?: number;
+  company_name?: string | null;
   // Leave tracking
   vacation_days_total: number;
   vacation_days_used: number;
@@ -73,7 +74,10 @@ export interface Project {
   name: string;
   customer_id: number;
   customerId: number;
-  active: boolean;  // alias for compatibility
+  active: boolean;
+  start_date?: string | null;   // formato ISO: "2024-01-15"
+  end_date?: string | null;
+  effort?: number | null;       // giorni uomo
 }
 
 // TimesheetEntry combines timesheet and timework for easier use in UI

@@ -89,6 +89,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         hire_date: employeeData?.hire_date,
         job_title: employeeData?.job_title,
         company: employeeData?.company,
+        company_name: employeeData?.company_name,
         // Leave tracking - default values for now, will be from DB later
         vacation_days_total: 22,
         vacation_days_used: 0,
@@ -456,7 +457,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addProject = async (project: Omit<Project, 'id'>) => {
     try {
-      const data = await ProjectsService.addProject(project.name, project.customerId!);
+      const data = await ProjectsService.addProject(project.name, project.customerId!, project.start_date ?? null, project.end_date ?? null, project.effort ?? null);
 
       if (!data) throw new Error('Project not created');
 
@@ -472,8 +473,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProject = async (project: Project) => {
+    console.log("Updating project:", project)
     try {
-      const data = await ProjectsService.updateProject(project.id, project.name, project.customerId!, project.active);
+      const data = await ProjectsService.updateProject(project.id, project.name, project.customerId!, project.active, project.start_date ?? null, project.end_date ?? null, project.effort ?? null);
 
       if (!data) throw new Error('Project not updated');
 
