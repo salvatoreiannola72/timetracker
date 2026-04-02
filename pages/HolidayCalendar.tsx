@@ -495,7 +495,7 @@ export default function HolidayCalendar() {
       .map((item: any) => ({
         id: item.id,
         employee_id: item.employee,
-        employee_name: users.filter((u: any) => u.id === item.employee)[0].name ?? `Dipendente ${item.employee}`,
+        employee_name: users.filter((u: any) => u.id === item.employee)[0]?.name ?? `Dipendente ${item.employee}`,
         day: item.day,
       }));
   }
