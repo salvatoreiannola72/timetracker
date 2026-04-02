@@ -1,7 +1,7 @@
-import React from 'react';
-import { Client, Project } from '../../types';
-import { Card } from '../Card';
-import { Button } from '../Button';
+import React from "react";
+import { Client, Project } from "../../types";
+import { Card } from "../Card";
+import { Button } from "../Button";
 import {
   Briefcase,
   Building2,
@@ -9,7 +9,7 @@ import {
   Plus,
   ToggleLeft,
   ToggleRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface ProjectsTabContentProps {
   projects: Project[];
@@ -35,10 +35,12 @@ export const ProjectsTabContent: React.FC<ProjectsTabContentProps> = ({
           <Briefcase className="text-slate-400" size={32} />
         </div>
         <h3 className="text-lg font-semibold text-slate-900 mb-2">
-          {searchQuery ? 'Nessun progetto trovato' : 'Nessun progetto'}
+          {searchQuery ? "Nessun progetto trovato" : "Nessun progetto"}
         </h3>
         <p className="text-slate-500 mb-6">
-          {searchQuery ? 'Prova con un altro termine di ricerca' : 'Inizia creando il tuo primo progetto'}
+          {searchQuery
+            ? "Prova con un altro termine di ricerca"
+            : "Inizia creando il tuo primo progetto"}
         </p>
         {!searchQuery && (
           <Button onClick={onCreateProject} icon={<Plus size={18} />}>
@@ -59,12 +61,27 @@ export const ProjectsTabContent: React.FC<ProjectsTabContentProps> = ({
             key={project.id}
             className={`group relative overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 hover:scale-[1.02] ${
               project.active
-                ? 'bg-white border-blue-500 hover:border-blue-600'
-                : 'bg-slate-100 border-slate-300'
+                ? "bg-white border-blue-500 hover:border-blue-600"
+                : "bg-slate-100 border-slate-300"
             }`}
           >
-            <div className="p-5">
-              <div className="absolute top-3 right-3 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+            <div className="p-5 flex justify-between items-start">
+              <div className="">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2 break-words">
+                    {project.name}
+                  </h3>
+                </div>
+                <div className="flex items-center">
+                  <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full">
+                    <Building2 size={14} className="text-slate-600" />
+                    <span className="text-sm font-medium text-slate-700">
+                      {client?.name || "N/D"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => onEditProject(project)}
                   className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -76,26 +93,17 @@ export const ProjectsTabContent: React.FC<ProjectsTabContentProps> = ({
                   onClick={() => onToggleProject(project)}
                   className={`p-1.5 rounded-lg transition-colors ${
                     project.active
-                      ? 'text-blue-700 hover:text-blue-800 hover:bg-blue-100'
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      ? "text-blue-700 hover:text-blue-800 hover:bg-blue-100"
+                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                   }`}
-                  title={project.active ? 'Disattiva' : 'Attiva'}
+                  title={project.active ? "Disattiva" : "Attiva"}
                 >
-                  {project.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                  {project.active ? (
+                    <ToggleRight size={24} />
+                  ) : (
+                    <ToggleLeft size={24} />
+                  )}
                 </button>
-              </div>
-
-              <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2">
-                {project.name}
-              </h3>
-
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full">
-                  <Building2 size={14} className="text-slate-600" />
-                  <span className="text-sm font-medium text-slate-700">
-                    {client?.name || 'N/D'}
-                  </span>
-                </div>
               </div>
             </div>
           </Card>
