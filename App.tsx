@@ -10,6 +10,7 @@ import { Timesheet } from './pages/Timesheet';
 import { Anagrafiche } from './pages/Anagrafiche';
 import { Reports } from './pages/Reports';
 import { supabase } from './lib/supabase';
+import HolidayCalendar from './pages/HolidayCalendar';
 import Profile from './pages/Profile';
 
 const AppContent: React.FC = () => {
@@ -83,6 +84,7 @@ const AppContent: React.FC = () => {
       case 'timesheet': return <Timesheet />;
       case 'anagrafiche': return <Anagrafiche />;
       case 'reports': return <Reports />;
+      case 'holidays': return <HolidayCalendar />;
       case 'profile': return <Profile />;
       default: return <Dashboard />;
     }

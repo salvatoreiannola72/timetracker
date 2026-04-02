@@ -10,7 +10,8 @@ import {
   User as UserIcon,
   ChevronDown,
   Menu,
-  X
+  X,
+  Umbrella
 } from 'lucide-react';
 import { on } from 'events';
 
@@ -58,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         <div className={`p-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-blue-50' : ''}`}>
           <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
         </div>
-        <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-slate-600'}`}>
+        <span className={`text-[10px] font-medium ${isActive ? 'text-blue-600' : 'text-slate-600'}`}>
           {label}
         </span>
       </button>
@@ -94,6 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 <>
                   <NavLink page="anagrafiche" icon={Briefcase} label="Anagrafiche" />
                   <NavLink page="reports" icon={PieChart} label="Report" />
+                  <NavLink page="holidays" icon={Umbrella} label="Ferie" />
                 </>
               )}
             </div>
@@ -170,6 +172,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             <>
               <MobileNavItem page="anagrafiche" icon={Briefcase} label="Anagrafiche" />
               <MobileNavItem page="reports" icon={PieChart} label="Report" />
+              <MobileNavItem page="holidays" icon={Umbrella} label="Ferie" />
             </>
           )}
         </div>
