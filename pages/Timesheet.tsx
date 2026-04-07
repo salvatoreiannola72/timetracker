@@ -65,7 +65,7 @@ export const Timesheet: React.FC = () => {
   const formatDate = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-  const currentYear  = currentDate.getFullYear();
+  const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
   const reloadCurrent = () => {
@@ -81,7 +81,7 @@ export const Timesheet: React.FC = () => {
     return loadTimesheets(employeeId, undefined, undefined, weekStartStr, weekEndStr);
   };
 
-  
+
 
   useEffect(() => {
 
@@ -124,7 +124,7 @@ export const Timesheet: React.FC = () => {
     return EntryType.WORK;
   }
 
-  const loadTimesheets = async (employeeId: number, month?: number, year?: number, startDate?: string, endDate?: string ) => {
+  const loadTimesheets = async (employeeId: number, month?: number, year?: number, startDate?: string, endDate?: string) => {
     const data = await TimesheetsService.getTimesheetEntries(employeeId, month, year, false, startDate, endDate);
     const timesheets: any[] = data?.flatMap((item: any, index: number) => {
       let timesheet = {
@@ -138,12 +138,12 @@ export const Timesheet: React.FC = () => {
       return [timesheet];
     }) || [];
     setTimesheets(timesheets);
-    console.log({idUtente: employeeId, mese: month, anno: year, all_users: false, startDate: startDate, EndDate: endDate})
+    console.log({ idUtente: employeeId, mese: month, anno: year, all_users: false, startDate: startDate, EndDate: endDate })
   }
 
   // Stringa "YYYY-MM-DD" del lunedì — cambia solo quando cambia settimana
   const weekStartStr = useMemo(() => formatDate(weekDates[0]), [weekDates]);
-  const weekEndStr   = useMemo(() => formatDate(weekDates[6]), [weekDates]);
+  const weekEndStr = useMemo(() => formatDate(weekDates[6]), [weekDates]);
 
   useEffect(() => {
     if (!user?.id || selectedUser === null) return;
@@ -180,7 +180,7 @@ export const Timesheet: React.FC = () => {
     return selectedUser === user?.employee_id;
   }, [selectedUser, user?.employee_id]);
 
-  
+
 
   // Generate Month Dates (calendar grid)
   const monthDates = useMemo(() => {
@@ -790,11 +790,6 @@ export const Timesheet: React.FC = () => {
                                   </p>
                                 </div>
 
-                                {entry.description && (
-                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                                    {entry.description}
-                                  </p>
-                                )}
 
                                 <div className="flex justify-between">
                                   {(entry.hours > 0 || entry.permits_hours > 0) && (
