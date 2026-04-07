@@ -4,7 +4,8 @@ const backendUrl = import.meta.env.VITE_TIMETRACKER_BACKEND_URL;
 export interface WorkHour {
     project: number,
     customer?: number,
-    hours: number
+    hours: number,
+    description?: string
 }
  
 export interface Timesheet {

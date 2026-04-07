@@ -368,6 +368,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             project: entry.project_id ?? entry.projectId,
             customer: null,
             hours: entry.hours,
+            description: entry.description
           };
 
       const existing = await TimesheetsService.getTimesheet(day);
