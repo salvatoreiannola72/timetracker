@@ -1,6 +1,6 @@
 # Edgeworks Timesheet
 
-A modern timesheet management application built with React, TypeScript, and Supabase.
+A modern timesheet management application built with React, TypeScript
 
 ## Features
 
@@ -14,7 +14,6 @@ A modern timesheet management application built with React, TypeScript, and Supa
 ## Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite
-- **Backend**: Supabase (Authentication & Database)
 - **UI Components**: Custom components with Lucide React icons
 - **Charts**: Recharts
 - **State Management**: React Context API
@@ -23,7 +22,6 @@ A modern timesheet management application built with React, TypeScript, and Supa
 
 - Node.js (v18 or higher)
 - Bun (or npm/yarn)
-- Supabase account
 
 ## Setup
 
@@ -42,11 +40,6 @@ A modern timesheet management application built with React, TypeScript, and Supa
 
 3. **Configure environment variables**
    
-   Create a `.env` file in the root directory with your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
 
 4. **Run the development server**
    ```bash
@@ -77,11 +70,6 @@ This application is configured to run on Heroku with dynamic port binding.
    heroku create your-app-name
    ```
 
-4. **Set environment variables**
-   ```bash
-   heroku config:set VITE_SUPABASE_URL=your_supabase_url
-   heroku config:set VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
 
 5. **Deploy to Heroku**
    ```bash
@@ -114,10 +102,8 @@ The production-ready files will be in the `dist` folder.
 ```
 ├── components/         # Reusable UI components
 ├── context/           # React Context for state management
-├── lib/               # Utility functions and Supabase client
 ├── pages/             # Application pages/routes
 ├── public/            # Static assets
-├── supabase/          # Supabase configuration
 └── types.ts           # TypeScript type definitions
 ```
 

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Client, Project, TimesheetEntry, AppState, EntryType, UserFormData } from '../types';
-import { supabase } from '../lib/supabase';
 import { dbToEntry, formatUserName } from '../lib/utils';
 import { AuthService } from '@/services/auth';
 import { EmployeesService } from '@/services/employees'
@@ -12,13 +11,10 @@ import { UsersService } from '@/services/users'
 interface StoreContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
-  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   addEntry: (entry: Omit<TimesheetEntry, 'id' | 'timesheet_id' | 'employee_id' | 'user_id' | 'userId'>) => Promise<void>;
   deleteEntry: (id: number) => Promise<void>;
   addProject: (project: Omit<Project, 'id'>) => Promise<void>;
   updateProject: (project: Project) => Promise<void>;
-  deleteProject: (id: number) => Promise<void>;
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   updateClient: (client: Client) => Promise<void>;
   deleteClient: (id: number) => Promise<void>;
@@ -207,42 +203,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setEntries([]);
     } catch (error) {
       console.error('Logout error:', error);
-    }
-  };
-
-  const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/#reset-password`,
-      });
-
-      if (error) {
-        console.error('Reset password error:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Reset password error:', error);
-      return { success: false, error: error.message || 'Failed to send reset email' };
-    }
-  };
-
-  const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        console.error('Update password error:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Update password error:', error);
-      return { success: false, error: error.message || 'Failed to update password' };
     }
   };
 
@@ -490,22 +450,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const deleteProject = async (id: number) => {
-    try {
-      const { error } = await supabase
-        .from('projects_project')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setProjects(prev => prev.filter(p => p.id !== id));
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      throw error;
-    }
-  };
-
   return (
     <StoreContext.Provider value={{
       user,
@@ -515,13 +459,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       entries,
       login,
       logout,
-      resetPassword,
-      updatePassword,
       addEntry,
       deleteEntry,
       addProject,
       updateProject,
-      deleteProject,
       addClient,
       updateClient,
       deleteClient,

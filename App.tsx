@@ -9,41 +9,12 @@ import { Dashboard } from './pages/Dashboard';
 import { Timesheet } from './pages/Timesheet';
 import { Anagrafiche } from './pages/Anagrafiche';
 import { Reports } from './pages/Reports';
-import { supabase } from './lib/supabase';
+
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, loading } = useStore();
   const [page, setPage] = useState('dashboard');
   const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
-
-  // Check for password reset flow from email link
-  useEffect(() => {
-    const handleAuthStateChange = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const type = hashParams.get('type');
-
-      if (type === 'recovery' && accessToken) {
-        // User clicked password reset link
-        setAuthPage('reset-password');
-        // Clear the hash from URL
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    };
-
-    handleAuthStateChange();
-
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setAuthPage('reset-password');
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
 
   // Show loading screen while checking auth
   if (loading) {
