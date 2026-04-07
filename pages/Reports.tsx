@@ -297,7 +297,7 @@ export const Reports: React.FC = () => {
     if (csvContent) {
       csvContent += "\n\nDETTAGLI\n";
       csvContent +=
-        "Data,Utente,Cliente,Progetto,Ore,Permesso,Ferie,Malattia\n";
+        "Data,Utente,Cliente,Progetto,Ore,Descrizione,Permesso,Ferie,Malattia\n";
       filteredEntries.forEach((entry) => {
         const user = users.find((u) => u.id === entry.userId);
         const project = projects.find((p) => p.id === entry.projectId);
@@ -306,7 +306,7 @@ export const Reports: React.FC = () => {
           (entry.permits_hours ?? 0) > 0 ? entry.permits_hours : "";
         const holiday = entry.holiday === true ? 8 : "";
         const illness = entry.illness === true ? 8 : "";
-        csvContent += `"${entry.date}","${user?.name || "Unknown"}","${client?.name || (project?.customer_id ? `Cliente ${project.customer_id}` : "")}","${project?.name || ""}","${entry.hours ?? ""}","${permit}","${holiday}","${illness}"\n`;
+        csvContent += `"${entry.date}","${user?.name || "Unknown"}","${client?.name || (project?.customer_id ? `Cliente ${project.customer_id}` : "")}","${project?.name || ""}","${entry.hours ?? ""}","${entry.description || ""}","${permit}","${holiday}","${illness}"\n`;
       });
     }
 
@@ -370,6 +370,7 @@ export const Reports: React.FC = () => {
           Progetto: project?.name || "",
           Ore: entry.hours,
           Permesso: (entry.permits_hours ?? 0) > 0 ? entry.permits_hours : "",
+          Descrizione: entry.description || "",
           Ferie: entry.holiday === true ? 8 : "",
           Malattia: entry.illness === true ? 8 : "",
         };
