@@ -482,22 +482,10 @@ export default function HolidayCalendar() {
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [isMobile, setIsMobile]       = useState(window.innerWidth < 768);
-  const { users } = useStore();
 
 
   async function fetchHolidays(startDate: string, endDate: string): Promise<HolidayEntry[]> {
-    const data = await TimesheetsService.getTimesheetEntries(
-      undefined, undefined, undefined, true, startDate, endDate
-    );
-    const items: any[] = Array.isArray(data) ? data : data.results ?? [];
-    return items
-      .filter((item: any) => Boolean(item.holiday))
-      .map((item: any) => ({
-        id: item.id,
-        employee_id: item.employee,
-        employee_name: users.filter((u: any) => u.id === item.employee)[0]?.name ?? `Dipendente ${item.employee}`,
-        day: item.day,
-      }));
+    return TimesheetsService.getHolidayEntries(startDate, endDate);
   }
 
   useEffect(() => {

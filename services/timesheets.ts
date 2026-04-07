@@ -278,6 +278,30 @@ export class TimesheetsService {
         }
     }
 
+    static async getHolidayEntries(startDate: string, endDate: string): Promise<any> {
+        const token = AuthService.getAccessToken();
+        if (!token) return null;
+
+        const params = new URLSearchParams({ holiday: 'true', start_date: startDate, end_date: endDate, all_users: 'true' });
+        const response = await fetch(`${backendUrl}/api/timesheets/?${params}`, {
+            headers: {  Authorization: `Bearer ${token}`, },
+        });
+
+        if (!response.ok) {
+            console.error('Error fetching holidays:', response.status, response.statusText);
+            return null;
+            }
+
+        const data = await response.json();
+        const items = Array.isArray(data) ? data : data.results ?? [];
+        return items.map((item: any) => ({
+            id: item.id,
+            employee_id: item.employee,
+            employee_name: item.employee_name ?? `Dipendente ${item.employee}`,
+            day: item.day,
+        }));
+        }
+
 
 
 }
