@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+
+ARG _VITE_TIMETRACKER_BACKEND_URL
+RUN echo "VITE_TIMETRACKER_BACKEND_URL=$_VITE_TIMETRACKER_BACKEND_URL"
 RUN npm run build
 
 # Stage 2: serve con nginx
